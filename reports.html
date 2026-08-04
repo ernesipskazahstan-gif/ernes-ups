@@ -15,7 +15,1582 @@
     --green:#2E9E4C;
     --yellow:#E0A800;
     --red:#D9362B;
+    --text:#222;<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERNES — Журнал актов (Диагностика / ТО)</title>
+<script src="logos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+  :root{
+    --navy:#1F4E79;
+    --amber:#F2B705;
+    --cream:#FFF4D6;
+    --gray-bg:#F2F2F2;
+    --green:#2E9E4C;
+    --yellow:#E0A800;
+    --red:#D9362B;
     --text:#222;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:var(--gray-bg); color:var(--text);
+  }
+  header{
+    background:var(--navy); color:#fff; padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  header h1{margin:0; font-size:18px;}
+  header .sub{font-size:12px; opacity:.8;}
+
+  .wrap{max-width:960px; margin:0 auto; padding:18px;}
+
+  .toolbar{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .toolbar input{
+    flex:1; min-width:200px; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:14px;
+  }
+  .toolbar button{
+    padding:10px 16px; border-radius:8px; border:none; background:var(--navy); color:#fff; cursor:pointer; font-size:14px;
+  }
+
+  .act-card{
+    background:#fff; border-radius:12px; padding:14px 16px; margin-bottom:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08); cursor:pointer; transition:box-shadow .15s;
+  }
+  .act-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.14);}
+  .act-card .top-row{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;}
+  .act-card .act-num{font-weight:700; color:var(--navy); font-size:15px;}
+  .act-card .date{font-size:12px; color:#888;}
+  .act-card .client{font-size:14px; margin-top:4px; font-weight:600;}
+  .act-card .meta{font-size:12px; color:#666; margin-top:2px;}
+  .status-dots{display:flex; gap:5px; margin-top:8px;}
+  .dot{width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.1); flex-shrink:0;}
+  .dot.green{background:var(--green);}
+  .dot.yellow{background:var(--yellow);}
+  .dot.red{background:var(--red);}
+  .dot.gray{background:#ddd;}
+
+  .empty-msg, .loading-msg{text-align:center; color:#888; padding:40px 0;}
+
+  #detailView{display:none;}
+  .back-btn{
+    background:none; border:none; color:var(--navy); font-size:14px; cursor:pointer;
+    padding:8px 0; margin-bottom:10px; display:flex; align-items:center; gap:6px;
+  }
+  .detail-card{background:#fff; border-radius:12px; padding:20px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .detail-header-row{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;}
+  .detail-card h2{
+    color:var(--navy); font-size:20px; margin:0 0 4px; border-bottom:3px solid var(--amber); padding-bottom:8px; flex:1;
+  }
+  .detail-card .detail-sub{font-size:13px; color:#777; margin-bottom:14px;}
+  .kv-table{width:100%; border-collapse:collapse; font-size:14px;}
+  .kv-table td{padding:6px 4px; border-bottom:1px solid #f0f0f0; vertical-align:top;}
+  .kv-table td.k{color:#666; width:42%; font-weight:600;}
+
+  .section-title{color:var(--navy); font-size:14px; font-weight:700; margin:18px 0 8px; text-transform:uppercase; letter-spacing:.03em;}
+
+  .unit-block{border:1px solid #ddd; border-radius:10px; margin-bottom:12px; overflow:hidden;}
+  .unit-block-header{
+    background:var(--cream); padding:10px 14px; cursor:pointer; font-weight:700; color:var(--navy);
+    display:flex; align-items:center; gap:8px; font-size:14px;
+  }
+  .unit-block-header .arrow{width:12px; flex-shrink:0;}
+  .unit-block-header .badges{display:flex; gap:3px; margin-left:auto;}
+  .unit-block-body{padding:14px;}
+  .unit-block-body.collapsed{display:none;}
+
+  .status-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5; font-size:14px;}
+  .status-row .dot{width:14px; height:14px;}
+  .status-row .item-name{font-weight:600; min-width:160px;}
+  .status-row .item-comment{color:#555; font-size:13px;}
+
+  .conclusion-box{background:var(--cream); border-radius:8px; padding:14px; font-size:14px; white-space:pre-wrap; line-height:1.5;}
+
+  .photo-group-title{font-size:13px; font-weight:700; color:var(--navy); margin:14px 0 6px;}
+  .photo-subgroup-title{font-size:12px; font-weight:600; color:#666; margin:10px 0 4px;}
+  .photo-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px;}
+  .photo-grid img{width:100%; height:110px; object-fit:cover; border-radius:8px; border:1px solid #ddd; cursor:pointer;}
+  .no-photos{color:#999; font-size:13px; font-style:italic;}
+
+  .drive-link{display:inline-block; margin-top:10px; font-size:13px; color:var(--navy);}
+
+  .edit-btn, .save-btn, .cancel-btn{
+    padding:8px 14px; border-radius:8px; border:none; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .edit-btn{background:var(--navy); color:#fff;}
+  .save-btn{background:var(--amber); color:#1a1a1a;}
+  .cancel-btn{background:#eee; color:#333; margin-left:8px;}
+
+  .sub-card{border:1px solid #e3e3e3; border-radius:10px; padding:12px; margin-bottom:10px; position:relative;}
+  .sub-card .sub-title{font-weight:700; font-size:13px; color:var(--navy); margin-bottom:8px;}
+  .remove-btn{position:absolute; top:10px; right:10px; background:none; border:none; color:#c33; font-size:12px; cursor:pointer;}
+  .add-btn{width:100%; padding:10px; border-radius:8px; border:2px dashed var(--navy); background:var(--cream); color:var(--navy); font-weight:600; font-size:13px; cursor:pointer;}
+
+  .edit-field{margin-bottom:8px;}
+  .edit-field label{display:block; font-size:12px; color:#666; margin-bottom:3px; font-weight:600;}
+  .edit-field input, .edit-field select, .edit-field textarea{
+    width:100%; padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px; font-family:inherit;
+  }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .mic-row{display:flex; gap:6px; align-items:flex-start;}
+  .mic-row textarea{flex:1;}
+  .mic-btn{flex-shrink:0; width:36px; height:36px; border-radius:50%; border:none; background:var(--navy); color:#fff; cursor:pointer;}
+  .mic-btn.rec{background:var(--red);}
+
+  .edit-status-item{border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px;}
+  .edit-status-item .item-title{font-weight:600; font-size:13px; margin-bottom:6px; color:var(--navy);}
+
+  .photo-edit-item{position:relative;}
+  .photo-edit-item img{width:100%; height:110px; object-fit:cover; border-radius:8px; border:1px solid #ddd; cursor:pointer; display:block;}
+  .photo-del-btn{
+    position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; border:none;
+    background:var(--red); color:#fff; font-size:13px; cursor:pointer; line-height:1;
+  }
+
+  #lightbox{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:100;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  #lightbox img{max-width:100%; max-height:100%; border-radius:6px;}
+  /* ===== Печатный шаблон (скрыт на экране, виден только при печати) ===== */
+  .print-only{display:none;}
+  .print-page{width:210mm; margin:0 auto; background:#fff; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#222; position:relative;}
+  @page{size:A4; margin:0;}
+  .ptable{width:210mm; border-collapse:collapse; table-layout:fixed;}
+  .ptable > thead > tr > td{padding:0; height:10mm;}
+  .ptable > tbody > tr > td{padding:0 0 4mm 0; vertical-align:top;}
+  .ptable > tfoot > tr > td{padding:0; height:26mm;}
+  .pfoot-spacer{height:26mm;}
+  .pdoc-header{padding:20px 30px 4px; background:#fff; border-bottom:3px solid; border-image:linear-gradient(90deg,#3CB043,#F2B705) 1;}
+  .pheader-top{display:flex; justify-content:space-between; align-items:center;}
+  .plogo-row img{height:118px; width:auto; display:block;}
+  .pdocno{text-align:right;}
+  .pdocno .num{font-weight:800; font-size:14px; color:#1F4E79; white-space:nowrap;}
+  .pdocno .date{display:inline-block; margin-top:7px; color:#3CB043; font-weight:600; font-size:12.5px; border-bottom:2px solid #3CB043; padding:3px 0 5px;}
+  .phero{display:grid; grid-template-columns:1fr 255px; gap:14px; align-items:center; margin-top:10px; min-height:190px;}
+  .ptitle{font-size:25px; line-height:1.08; font-weight:900; color:#0F2438; margin:0; text-transform:uppercase;}
+  .ptitle span{display:block; color:#3CB043;}
+  .paccent{width:26px; height:2px; background:#3CB043; margin:8px 0;}
+  .pintro{font-size:11px; line-height:1.42; color:#333; max-width:330px; margin:2px 0 10px;}
+  .phero-img{width:100%; max-width:255px; height:auto; display:block; margin:0 auto;}
+  .pcontent{padding:16px 26px 0;}
+  .pcontent-nohead{padding-top:26px;}
+  .psection{margin-bottom:16px;}
+  .psection-head{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; color:#1F4E79; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #FFF4D6; padding-bottom:5px; margin-bottom:8px;}
+  .pinfo-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 20px; font-size:12px;}
+  .pinfo-item{padding:4px 0; border-bottom:1px solid #f0f0f0;}
+  .pinfo-item .lbl{color:#888; font-size:9px; text-transform:uppercase;}
+  .pinfo-item .val{font-weight:600;}
+  .punit{border:1px solid #e6e6e6; border-radius:6px; margin-bottom:10px; overflow:hidden; page-break-inside:avoid;}
+  .punit-title{display:flex; align-items:center; justify-content:space-between; gap:10px; background:#FFF4D6; color:#1F4E79; font-size:11px; font-weight:700; padding:6px 10px; border-bottom:1px solid #F2B705;}
+  .punit-title .pdots{display:flex; gap:3px; flex-shrink:0;}
+  .punit-title .pdot{width:7px; height:7px; border-radius:50%; background:#ccc;}
+  .punit-title .pdot.green{background:#3CB043;}.punit-title .pdot.yellow{background:#E0A800;}.punit-title .pdot.red{background:#D9362B;}
+  .punit-body{display:grid; grid-template-columns:1.1fr 1fr;}
+  .punit-info{padding:8px 10px; font-size:11px; border-right:1px solid #eee;}
+  .punit-info .row{display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px dotted #eee;}
+  .punit-info .row .k{color:#888;}
+  .punit-info .row .v{font-weight:600; text-align:right;}
+  .punit-status{padding:8px 10px;}
+  .pstatus-line{display:flex; gap:6px; padding:3px 0; font-size:11px;}
+  .pstatus-line .dot{width:8px; height:8px; border-radius:50%; margin-top:3px; flex-shrink:0;}
+  .pstatus-line .txt b{display:block; font-size:11px;}
+  .pstatus-line .txt span{color:#666; font-size:10px;}
+  .pmini{border:1px solid #e6e6e6; border-radius:6px; padding:8px 10px; font-size:11px; margin-bottom:6px;}
+  .pmini .t{font-weight:700; color:#1F4E79;}
+  .pconclusion{background:#FFF4D6; border-radius:6px; padding:12px 14px; font-size:12px; white-space:pre-wrap; line-height:1.5; border-left:4px solid #F2B705;}
+  .pphoto-group{margin-bottom:10px; page-break-inside:avoid;}
+  .pphoto-name{font-size:11px; font-weight:700; color:#1F4E79; margin-bottom:5px;}
+  .pphoto-sub{font-size:10px; font-weight:600; color:#777; margin:5px 0 3px;}
+  .pphoto-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:5px;}
+  .pphoto-grid img{width:100%; height:70px; object-fit:cover; border-radius:5px; border:1px solid #ddd;}
+  .psign-block{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:8px; page-break-inside:avoid;}
+  .psign-item{font-size:11px;}
+  .psign-line{border-bottom:1px solid #999; height:30px; margin-top:14px;}
+  .psign-caption{display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;}
+
+  .print-fixed-footer{position:fixed; left:0; right:0; bottom:0; z-index:2;}
+  .partner-band{background:#fff; padding:8px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; border-top:1px solid #eee; height:14mm; box-sizing:border-box;}
+  .partner-band img{max-height:28px; max-width:18%; width:auto; height:auto; object-fit:contain;}
+
+  .pfinal{position:relative; z-index:5; page-break-before:always; background:#fff; overflow:hidden; width:210mm; height:297mm;}
+  .pfinal-static{display:block; width:210mm; height:297mm; object-fit:cover;}
+
+  .pdoc-footer{position:relative; height:12mm; background:#0F2438;}
+  /* последняя страница перекрывает фиксированный подвал (z-index выше) */
+  .pdoc-footer::before{content:''; position:absolute; right:0; top:-16px; width:240px; height:28px; border-top:1px solid #6ab42b; border-left:1px solid #6ab42b; transform:skewX(-35deg);}
+  .pdoc-footer::before{content:''; position:absolute; right:0; top:-16px; width:240px; height:28px; border-top:1px solid #6ab42b; border-left:1px solid #6ab42b; transform:skewX(-35deg);}
+  .pfooter{background:#0F2438; color:#fff; padding:12px 26px; margin-top:8px; display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:center; font-size:10px;}
+  .pfooter .fitem .ic{color:#3CB043;}
+
+  @media print{
+    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+    body *{visibility:hidden;}
+    .print-only, .print-only *{visibility:visible;}
+    .print-only{display:block !important; position:absolute; left:0; top:0; width:100%;}
+    .punit, .pphoto-group, .psign-block{page-break-inside:avoid;}
+  }
+  .build-version{position:fixed; right:6px; bottom:4px; font-size:10px; color:#bbb; background:#fff; padding:1px 5px; border-radius:3px; z-index:9999; font-family:monospace;}
+  @media print{ .build-version{display:none !important;} }
+
+  /* ===== Вкладки ===== */
+  .tabs{max-width:960px; margin:0 auto; padding:12px 18px 0; display:flex; gap:8px;}
+  .tab{flex:1; padding:12px 8px; border:none; border-radius:10px 10px 0 0; background:#e6eaef; color:#556; font-weight:700; font-size:14px; cursor:pointer;}
+  .tab.tab-active{background:#fff; color:var(--navy); box-shadow:0 -2px 6px rgba(0,0,0,.05);}
+  @media print{ .tabs{display:none !important;} }
+
+  /* ===== ТО: сводка/разделы (экран) ===== */
+  .flag-pill{display:inline-block; padding:2px 8px; border-radius:20px; font-weight:600; margin-right:6px; font-size:12px;}
+  .flag-ok{background:#e7f6ec; color:#2E9E4C;} .flag-yellow{background:#fdf3d7; color:#9a7400;}
+  .flag-red{background:#fdecea; color:#D9362B;} .flag-batt{background:#eef2f7; color:var(--navy);}
+  .sec-title{color:var(--navy); font-size:13px; font-weight:700; margin:16px 0 6px; padding-top:10px; border-top:1px dashed #e0e0e0; text-transform:uppercase; letter-spacing:.02em;}
+  .mrow{display:flex; gap:10px; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px; align-items:baseline;}
+  .mkey{color:#555; flex:1; font-weight:600;} .mval{color:#111; text-align:right; min-width:120px; font-variant-numeric:tabular-nums;}
+  .mstatus{display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px; flex-wrap:wrap;}
+  .mstatus .nm{font-weight:600; flex:1;} .mstatus .wd{min-width:110px; text-align:right;}
+  .mstatus .cm{flex-basis:100%; color:#666; font-size:12px; padding-left:20px;}
+  .mcheck{display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px;}
+  .mcheck .mk{font-weight:700; width:18px; text-align:center;} .mcheck.on .mk{color:#2E9E4C;} .mcheck.off .mk{color:#bbb;}
+  .phase-vals span{display:inline-block; margin-left:8px;} .phase-vals b{color:var(--navy);}
+  .cells-table{width:100%; border-collapse:collapse; font-size:12px; margin:6px 0;}
+  .cells-table th{background:#f4f6f9; color:#555; font-weight:700; padding:4px 6px; text-align:center; border:1px solid #e6e6e6;}
+  .cells-table td{padding:4px 6px; text-align:center; border:1px solid #eee; font-variant-numeric:tabular-nums;}
+  .cells-table tr.cell-weak td{background:#fdecea; color:#D9362B; font-weight:700;}
+  .cells-stats{font-size:12px; color:#555; margin:4px 0 2px;} .cells-stats .weak{color:#D9362B; font-weight:700;}
+
+  /* ===== ТО: печать (чистый A4) ===== */
+  .to-print .p-head{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid; border-image:linear-gradient(90deg,#3CB043,#F2B705) 1; padding-bottom:8px; margin-bottom:12px;}
+  .to-print .p-brand{font-size:18px; font-weight:900; color:var(--navy);} .to-print .p-brand .co{display:block; font-size:10px; font-weight:600; color:#666; letter-spacing:.04em;}
+  .to-print .p-docno{text-align:right; font-size:12px;} .to-print .p-docno .num{font-weight:800; color:var(--navy); font-size:14px;}
+  .to-print .p-title{font-size:15px; font-weight:800; color:var(--navy); text-transform:uppercase; margin:0 0 10px;}
+  .to-print .p-info{display:grid; grid-template-columns:1fr 1fr; gap:2px 20px; font-size:11px; margin-bottom:12px;}
+  .to-print .p-info .it{padding:3px 0; border-bottom:1px solid #f0f0f0;} .to-print .p-info .it .l{color:#888; font-size:9px; text-transform:uppercase;} .to-print .p-info .it .v{font-weight:600;}
+  .to-print .p-unit{border:1px solid #e0e0e0; border-radius:6px; margin-bottom:10px; page-break-inside:avoid;}
+  .to-print .p-unit-title{background:var(--navy); color:#fff; font-size:12px; font-weight:700; padding:5px 10px;}
+  .to-print .p-unit-body{padding:8px 10px;}
+  .to-print .p-conc{background:#FFF4D6; border-left:4px solid #F2B705; border-radius:6px; padding:10px 12px; font-size:11px; white-space:pre-wrap; line-height:1.45; margin-top:6px;}
+  .to-print .p-sign{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:16px; page-break-inside:avoid;}
+  .to-print .p-sign .ln{border-bottom:1px solid #999; height:26px; margin-top:12px;} .to-print .p-sign .cap{display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;}
+  .to-print .p-photos .grid{display:grid; grid-template-columns:repeat(5,1fr); gap:5px;} .to-print .p-photos img{width:100%; height:70px; object-fit:cover; border-radius:5px; border:1px solid #ddd;} .to-print .p-photos .name{font-size:11px; font-weight:700; color:var(--navy); margin:8px 0 4px;}
+  @media print{ .to-print .sec-title{border-top:none; margin:8px 0 4px; font-size:11px;} .to-print .mrow,.to-print .mstatus,.to-print .mcheck{padding:2px 0; font-size:11px;} }
+  @media print{
+    #printTemplate .sec-title{font-size:10px; margin:6px 0 3px; padding-top:5px; border-top:1px dashed #ddd;}
+    #printTemplate .mrow, #printTemplate .mstatus, #printTemplate .mcheck{font-size:10px; padding:2px 0;}
+    #printTemplate .mstatus .cm{font-size:9px;}
+    #printTemplate .cells-table{font-size:9px;}
+    #printTemplate .punit{page-break-inside:avoid;}
+  }
+
+  /* ===== QR-наклейка ===== */
+  .label-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:300; align-items:center; justify-content:center; padding:16px;}
+  .label-overlay.show{display:flex;}
+  .label-panel{background:#fff; border-radius:12px; padding:16px; max-width:360px; width:100%; text-align:center;}
+  .label-panel h3{margin:0 0 10px; color:var(--navy); font-size:16px;}
+  .label-card{border:2px solid var(--navy); border-radius:12px; padding:14px; margin:0 auto 14px; max-width:280px;}
+  .label-card .lc-logo{height:34px; margin-bottom:8px;}
+  .label-card .lc-model{font-weight:800; color:var(--navy); font-size:15px;}
+  .label-card .lc-serial{font-family:monospace; font-weight:700; font-size:13px; background:var(--cream); display:inline-block; padding:3px 8px; border-radius:6px; margin:6px 0;}
+  .label-card .lc-qr{margin:8px auto;}
+  .label-card .lc-qr img{width:150px; height:150px; image-rendering:pixelated;}
+  .label-card .lc-cap{font-size:11px; color:#555; margin-top:4px;}
+  .label-panel .lp-actions{display:flex; gap:8px;}
+  .label-panel .lp-actions button{flex:1; padding:11px; border-radius:8px; border:none; font-weight:700; font-size:14px; cursor:pointer;}
+  .lp-print{background:var(--navy); color:#fff;} .lp-close{background:#eee; color:#333;}
+  .print-label{text-align:center; padding:40px 20px;}
+  .print-label .pl-card{border:3px solid var(--navy); border-radius:16px; padding:24px; display:inline-block; max-width:420px;}
+  .print-label img.pl-logo{height:48px; margin-bottom:12px;}
+  .print-label .pl-model{font-weight:800; color:var(--navy); font-size:22px;}
+  .print-label .pl-serial{font-family:monospace; font-weight:700; font-size:18px; margin:10px 0;}
+  .print-label img.pl-qr{width:230px; height:230px; image-rendering:pixelated; margin:8px 0;}
+  .print-label .pl-cap{font-size:13px; color:#333; margin-top:8px; max-width:320px; margin-left:auto; margin-right:auto;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1 id="journalTitle">📋 Журнал актов</h1>
+    <div class="sub">ERNES INDUSTRIAL POWER SYSTEMS</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab tab-active" id="tabDiag" onclick="switchTab('diag')">⚡ Экспресс-диагностика</button>
+  <button class="tab" id="tabTo" onclick="switchTab('to')">🔧 Техобслуживание</button>
+</div>
+
+<div class="wrap">
+
+  <div id="listView">
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Поиск по заказчику, модели, № акта...">
+      <button onclick="reloadCurrent()">🔄 Обновить</button>
+    </div>
+    <div id="actsList"><div class="loading-msg">Загрузка...</div></div>
+  </div>
+
+  <div id="detailView">
+    <button class="back-btn" onclick="showList()">← Назад к списку</button>
+    <div id="detailContent"></div>
+  </div>
+
+</div>
+
+<div id="lightbox" onclick="this.style.display='none'">
+  <img id="lightboxImg" src="">
+</div>
+
+<div class="label-overlay" id="labelOverlay">
+  <div class="label-panel">
+    <h3>QR-наклейка на ИБП</h3>
+    <div id="labelPreview"></div>
+    <div class="lp-actions">
+      <button class="lp-print" onclick="printLabel()">🖨 Печать наклейки</button>
+      <button class="lp-close" onclick="closeLabel()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="print-only" id="printTemplate"></div>
+
+<div class="build-version">journal: фото у пунктов + фирменная печать ТО</div>
+
+
+<script>
+/* LOGO_B64 → logos.js */
+/* UPS_MAIN_B64 → logos.js */
+/* PARTNER_B64 → logos.js */
+
+/* FINAL_PAGE_B64 → logos.js */
+
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
+
+var allActs = [];
+var allActsTO = [];
+var currentType = 'diag';   // 'diag' | 'to' — активная вкладка
+var currentAct = null;
+var editState = null;
+var editPhotoGroups = [];
+var viewPhotoGroups = [];
+
+var STATUS_ITEMS = [
+  {key:'statusInverter',  title:'Инверторный блок'},
+  {key:'statusRectifier', title:'Выпрямительный блок'},
+  {key:'statusBattery',   title:'АКБ'},
+  {key:'statusDisplay',   title:'Индикация'},
+  {key:'statusFans',      title:'Вентиляторы'},
+  {key:'statusDust',      title:'Запылённость'}
+];
+
+function callGet(action, params){
+  var url = APPS_SCRIPT_URL + '?action=' + action;
+  Object.keys(params || {}).forEach(function(k){ url += '&' + k + '=' + encodeURIComponent(params[k]); });
+  return fetch(url).then(function(r){ return r.json(); }).then(unwrap);
+}
+function callPost(action, data){
+  var body = Object.assign({ action: action }, data || {});
+  return fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(unwrap);
+}
+function unwrap(res){
+  if(!res.ok) throw new Error(res.error || 'Ошибка сервера');
+  return res.data;
+}
+
+function esc(s){
+  if(s === undefined || s === null) return '';
+  return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; });
+}
+function safeParse(json, fallback){
+  try { var v = JSON.parse(json || 'null'); return v || fallback; } catch(e){ return fallback; }
+}
+
+function statusClass(statusText){
+  if(!statusText) return 'gray';
+  if(statusText.indexOf('Норма') === 0) return 'green';
+  if(statusText.indexOf('Замечание') === 0) return 'yellow';
+  if(statusText.indexOf('Неисправность') === 0) return 'red';
+  return 'gray';
+}
+function statusLabelWord(statusText){
+  if(!statusText || statusText.indexOf('не отмечено') === 0) return '';
+  return statusText.split(' — ')[0];
+}
+function statusComment(statusText){
+  if(!statusText) return '';
+  var parts = statusText.split(' — ');
+  return parts.slice(1).join(' — ');
+}
+function statusDisplayText(statusText){
+  var parsed = { label: statusLabelWord(statusText) || 'не отмечено', comment: statusComment(statusText) };
+  return parsed.comment || parsed.label;
+}
+function worstStatusClass(units, key){
+  var classes = units.map(function(u){ return statusClass(u.statuses ? u.statuses[key] : ''); });
+  if(classes.indexOf('red') !== -1) return 'red';
+  if(classes.indexOf('yellow') !== -1) return 'yellow';
+  if(classes.indexOf('green') !== -1) return 'green';
+  return 'gray';
+}
+
+// ===== Список =====
+function loadActs(){
+  document.getElementById('actsList').innerHTML = '<div class="loading-msg">Загрузка...</div>';
+  callGet('listActs')
+    .then(function(acts){ allActs = acts; renderList(acts); })
+    .catch(function(err){
+      document.getElementById('actsList').innerHTML = '<div class="empty-msg">Ошибка загрузки: ' + err.message + '</div>';
+    });
+}
+
+function renderList(acts){
+  var container = document.getElementById('actsList');
+  if(!acts.length){ container.innerHTML = '<div class="empty-msg">Актов пока нет</div>'; return; }
+  container.innerHTML = acts.map(function(act, idx){
+    var units = safeParse(act.unitsJson, []);
+    var dots = STATUS_ITEMS.map(function(item){ return '<div class="dot ' + worstStatusClass(units, item.key) + '"></div>'; }).join('');
+    var modelsText = units.map(function(u){ return u.model; }).filter(Boolean).join(', ');
+    return ''+
+    '<div class="act-card" onclick="openDetail(' + idx + ')">'+
+      '<div class="top-row">'+
+        '<span class="act-num">' + esc(act.actNumber) + '</span>'+
+        '<span class="date">' + esc(act.date) + '</span>'+
+      '</div>'+
+      '<div class="client">' + esc(act.client || '—') + '</div>'+
+      '<div class="meta">' + esc(act.address || '') + (modelsText ? ' · ' + esc(modelsText) : '') + (units.length > 1 ? ' (' + units.length + ' ИБП)' : '') + '</div>'+
+      '<div class="status-dots">' + dots + '</div>'+
+    '</div>';
+  }).join('');
+}
+
+document.getElementById('searchInput').addEventListener('input', function(){
+  var q = this.value.trim().toLowerCase();
+  if(currentType === 'to'){
+    if(!q){ renderListTO(allActsTO); return; }
+    renderListTO(allActsTO.filter(function(act){ return actMatchesQuery(act, q); }));
+    return;
+  }
+  if(!q){ renderList(allActs); return; }
+  renderList(allActs.filter(function(act){ return actMatchesQuery(act, q); }));
+});
+
+function actMatchesQuery(act, q){
+  var units = safeParse(act.unitsJson, []);
+  var modelsText = units.map(function(u){ return (u.model||'') + ' ' + (u.serial||''); }).join(' ').toLowerCase();
+  return (act.client||'').toLowerCase().indexOf(q) !== -1 ||
+         modelsText.indexOf(q) !== -1 ||
+         (act.actNumber||'').toLowerCase().indexOf(q) !== -1 ||
+         (act.address||'').toLowerCase().indexOf(q) !== -1 ||
+         (act.basis||'').toLowerCase().indexOf(q) !== -1;
+}
+
+function showList(){
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('listView').style.display = 'block';
+}
+
+function extractFolderId(url){
+  if(!url) return null;
+  var m = url.match(/folders\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+// ===== Детальный просмотр (read-only) =====
+function openDetail(idx){
+  currentAct = allActs[idx];
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  renderViewMode();
+}
+
+function toggleUnitBlock(elId){
+  var body = document.getElementById(elId);
+  var arrow = document.getElementById(elId + '_arrow');
+  var collapsed = body.classList.toggle('collapsed');
+  if(arrow) arrow.textContent = collapsed ? '▸' : '▾';
+}
+
+function renderViewMode(){
+  var act = currentAct;
+  var units = safeParse(act.unitsJson, []);
+  var loads = safeParse(act.loadsJson, []);
+  var genset = safeParse(act.gensetJson, []);
+
+  var unitsHtml = units.length ? units.map(function(u, i){
+    var badges = STATUS_ITEMS.map(function(item){ return '<div class="dot ' + statusClass(u.statuses ? u.statuses[item.key] : '') + '"></div>'; }).join('');
+    var statusRows = STATUS_ITEMS.map(function(item){
+      var raw = u.statuses ? u.statuses[item.key] : '';
+      return '<div class="status-row"><div class="dot ' + statusClass(raw) + '"></div>'+
+        '<div class="item-name">' + item.title + '</div>'+
+        '<div class="item-comment">' + esc(statusDisplayText(raw)) + '</div></div>';
+    }).join('');
+    var bodyId = 'unitBody_' + i;
+    return ''+
+    '<div class="unit-block">'+
+      '<div class="unit-block-header" onclick="toggleUnitBlock(\'' + bodyId + '\')">'+
+        '<span class="arrow" id="' + bodyId + '_arrow">▸</span>'+
+        '<span>ИБП #' + (i+1) + (u.model ? ' — ' + esc(u.model) : '') + (u.serial ? ' (' + esc(u.serial) + ')' : '') + '</span>'+
+        '<span class="badges">' + badges + '</span>'+
+      '</div>'+
+      '<div class="unit-block-body collapsed" id="' + bodyId + '">'+
+        '<table class="kv-table">'+
+          row('Мощность', u.power ? u.power + ' ' + (u.powerUnit || 'кВА') : '') +
+          row('Тип шкафа', u.cabinetType) + row('Кол-во шкафов', u.cabinetCount) +
+          row('Кол-во АКБ', u.batteryCount) + row('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
+          row('Модель АКБ', u.batteryModel) + row('Год АКБ', u.batteryYear) +
+          row('Температура', u.roomTemp ? u.roomTemp + ' °C' : '') +
+        '</table>'+
+        '<div class="section-title" style="margin-top:12px;">Состояние систем</div>'+
+        statusRows+
+        '<div class="section-title" style="margin-top:12px;">Фото по этому ИБП</div>'+
+        '<div id="unitPhotos_' + i + '"><span class="no-photos">Загрузка фото...</span></div>'+
+      '</div>'+
+    '</div>';
+  }).join('') : '<div class="no-photos">ИБП не указаны</div>';
+
+  var loadsHtml = loads.length ? loads.map(function(l, i){
+    return '<div class="sub-card"><div class="sub-title">Нагрузка #' + (i+1) + '</div>'+
+      '<table class="kv-table">' + row('Название', l.name) + row('Мощность', l.power) + row('Комментарий', l.comment) + '</table></div>';
+  }).join('') : '<div class="no-photos">Нагрузки не указаны</div>';
+
+  var gensetHtml = genset.length ? genset.map(function(g, i){
+    return '<div class="sub-card"><div class="sub-title"><span class="dot ' + statusClass(g.status==='green'?'Норма':g.status==='yellow'?'Замечание':g.status==='red'?'Неисправность':'') + '" style="display:inline-block;margin-right:6px;"></span>ДГУ #' + (i+1) + '</div>'+
+      '<table class="kv-table">'+
+      row('Модель', g.model) + row('Серийный №', g.serial) + row('Мощность', g.power ? g.power + ' кВА' : '') +
+      row('Моточасы', g.motohours) + row('Комментарий', g.comment) +
+      '</table></div>';
+  }).join('') : '<div class="no-photos">ДГУ не установлен</div>';
+
+  document.getElementById('detailContent').innerHTML = ''+
+    '<div class="detail-card">'+
+      '<div class="detail-header-row">'+
+        '<h2>' + esc(act.actNumber) + '</h2>'+
+        '<div>'+
+          '<label style="font-size:13px;margin-right:10px;user-select:none;cursor:pointer;">'+
+            '<input type="checkbox" id="printPhotos" checked style="vertical-align:middle;margin-right:4px;"> Фото в акте'+
+          '</label>'+
+          '<button class="edit-btn" onclick="printAct()">🖨 Печать / PDF</button>'+
+          '<button class="edit-btn" style="margin-left:8px;" onclick="enterEditMode()">✏️ Редактировать</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="detail-sub">' + esc(act.date) + ' · инженер ' + esc(act.engineer || '—') + '</div>'+
+      '<table class="kv-table">'+
+        row('Заказчик', act.client) + row('Контактное лицо', act.contact) +
+        row('Адрес объекта', act.address) + row('Основание', act.basis) +
+      '</table>'+
+      '<div class="section-title">ИБП</div>' + unitsHtml +
+      '<div class="section-title">Нагрузки</div>' + loadsHtml +
+      '<div class="section-title">ДГУ</div>' + gensetHtml +
+      '<div class="section-title">Заключение и рекомендации</div>'+
+      '<div class="conclusion-box">' + esc(act.conclusion || 'не заполнено') + '</div>'+
+      '<div class="section-title">Прочие фото (помещение, нагрузки, ДГУ)</div>'+
+      '<div id="photoGroups"><span class="no-photos">Загрузка фото...</span></div>'+
+      (act.folderUrl ? '<a class="drive-link" href="' + act.folderUrl + '" target="_blank">📁 Открыть папку в Drive</a>' : '') +
+    '</div>';
+
+  loadPhotos(act.folderUrl);
+}
+
+function row(label, value){
+  return '<tr><td class="k">' + label + '</td><td>' + esc(value || '—') + '</td></tr>';
+}
+
+function renderPhotoGroupsHtml(groups, prefix){
+  prefix = prefix || 'g';
+  if(!groups.length) return '<span class="no-photos">Фото не прикреплены</span>';
+  return groups.map(function(g, gi){
+    var directImgs = g.photos.map(function(p){
+      return '<img src="' + thumbUrl(p, 220) + '" onclick="openLightbox(\'' + p.url + '\')" loading="lazy">';
+    }).join('');
+    var subHtml = '';
+    if(g.subgroups && g.subgroups.length){
+      subHtml = g.subgroups.map(function(sg){
+        var imgs = sg.photos.map(function(p){
+          return '<img src="' + thumbUrl(p, 220) + '" onclick="openLightbox(\'' + p.url + '\')" loading="lazy">';
+        }).join('');
+        return '<div class="photo-subgroup-title">' + esc(sg.group) + ' (' + sg.photos.length + ')</div><div class="photo-grid">' + imgs + '</div>';
+      }).join('');
+    }
+    var bodyId = 'photoGroupBody_' + prefix + '_' + gi;
+    return ''+
+      '<div class="unit-block">'+
+        '<div class="unit-block-header" onclick="toggleUnitBlock(\'' + bodyId + '\')">'+
+          '<span class="arrow" id="' + bodyId + '_arrow">▸</span>'+
+          '<span>' + esc(g.group) + '</span>'+
+        '</div>'+
+        '<div class="unit-block-body collapsed" id="' + bodyId + '">'+
+          (directImgs ? '<div class="photo-grid">' + directImgs + '</div>' : '') +
+          subHtml +
+        '</div>'+
+      '</div>';
+  }).join('');
+}
+
+function loadPhotos(folderUrl){
+  var folderId = extractFolderId(folderUrl);
+  var container = document.getElementById('photoGroups');
+  if(!container) return;
+  if(!folderId){
+    container.innerHTML = '<span class="no-photos">Папка с фото не найдена</span>';
+    fillUnitPhotos([]);
+    return;
+  }
+  callGet('getPhotos', { folderId: folderId })
+    .then(function(groups){
+      viewPhotoGroups = groups;
+      var rest = distributePhotosToUnits(groups);
+      container.innerHTML = rest.length ? renderPhotoGroupsHtml(rest, 'other') : '<span class="no-photos">Прочих фото нет</span>';
+    })
+    .catch(function(err){
+      container.innerHTML = '<span class="no-photos">Не удалось загрузить фото: ' + err.message + '</span>';
+      fillUnitPhotos([]);
+    });
+}
+
+// Возвращает номер ИБП (1-based) из имени группы вида "ИБП #2/АКБ", иначе null
+function unitIndexFromGroup(name){
+  var m = /^\s*ИБП\s*#\s*(\d+)/i.exec(name || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function fillUnitPhotos(groupsForUnits){
+  var units = safeParse(currentAct.unitsJson, []);
+  units.forEach(function(u, i){
+    var el = document.getElementById('unitPhotos_' + i);
+    if(!el) return;
+    var mine = (groupsForUnits || []).filter(function(g){ return unitIndexFromGroup(g.group) === (i+1); });
+    el.innerHTML = mine.length ? renderPhotoGroupsHtml(mine, 'u' + i) : '<span class="no-photos">Фото по этому ИБП нет</span>';
+  });
+}
+
+// Раскладывает группы по ИБП, возвращает те, что не относятся ни к одному ИБП
+function distributePhotosToUnits(groups){
+  fillUnitPhotos(groups);
+  return (groups || []).filter(function(g){ return unitIndexFromGroup(g.group) === null; });
+}
+
+function openLightbox(url){
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+
+// ===== Режим редактирования =====
+function enterEditMode(){
+  var act = currentAct;
+  var rawUnits = safeParse(act.unitsJson, []);
+  editState = {
+    client: act.client, contact: act.contact, address: act.address, basis: act.basis, engineer: act.engineer,
+    units: rawUnits.map(function(u){
+      var statuses = {};
+      STATUS_ITEMS.forEach(function(item){
+        var raw = (u.statuses && u.statuses[item.key]) || '';
+        statuses[item.key] = {
+          value: raw.indexOf('Норма')===0?'green':raw.indexOf('Замечание')===0?'yellow':raw.indexOf('Неисправность')===0?'red':'',
+          comment: statusComment(raw)
+        };
+      });
+      return Object.assign({}, u, { statuses: statuses });
+    }),
+    loads: safeParse(act.loadsJson, []),
+    genset: safeParse(act.gensetJson, []),
+    conclusion: act.conclusion
+  };
+  renderEditMode();
+}
+
+function renderEditMode(){
+  var html = ''+
+    '<div class="detail-card">'+
+      '<div class="detail-header-row">'+
+        '<h2>Редактирование — ' + esc(currentAct.actNumber) + '</h2>'+
+      '</div>'+
+      efield('Заказчик', 'ed_client', editState.client) +
+      efield('Контактное лицо', 'ed_contact', editState.contact) +
+      efield('Адрес объекта', 'ed_address', editState.address) +
+      efield('Основание', 'ed_basis', editState.basis) +
+      efield('Инженер', 'ed_engineer', editState.engineer) +
+      '<div class="section-title">ИБП</div><div id="editUnits"></div>'+
+      '<div class="section-title">Нагрузки</div><div id="editLoads"></div>'+
+      '<div class="section-title">ДГУ</div><div id="editGenset"></div>'+
+      '<div class="section-title">Фото</div>'+
+      '<div id="editPhotos"><span class="no-photos">Загрузка...</span></div>'+
+      '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'+
+        '<input type="text" id="ed_photoGroup" list="photoGroupSuggestions" placeholder="Группа (напр. ИБП #1/АКБ)" style="flex:1;min-width:180px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">'+
+        '<datalist id="photoGroupSuggestions">' + photoGroupSuggestions() + '</datalist>'+
+        '<label class="edit-btn" style="cursor:pointer;">📷 Добавить фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addEditPhoto(event)"></label>'+
+      '</div>'+
+      '<div class="section-title">Заключение и рекомендации</div>'+
+      '<div class="mic-row">'+
+        '<textarea id="ed_conclusion" oninput="editState.conclusion=this.value">' + esc(editState.conclusion) + '</textarea>'+
+        '<button type="button" class="mic-btn" onclick="toggleMic(this,\'ed_conclusion\')">🎤</button>'+
+      '</div>'+
+      '<div style="margin-top:16px;">'+
+        '<button class="save-btn" onclick="saveEdit()">💾 Сохранить изменения</button>'+
+        '<button class="cancel-btn" onclick="renderViewMode()">Отмена</button>'+
+      '</div>'+
+    '</div>';
+  document.getElementById('detailContent').innerHTML = html;
+  renderEditUnits();
+  renderEditLoads();
+  renderEditGenset();
+  loadEditPhotos();
+}
+
+function efield(label, id, value){
+  return '<div class="edit-field"><label>' + label + '</label><input type="text" id="' + id + '" value="' + esc(value) + '" oninput="editState.' + id.replace('ed_','') + '=this.value"></div>';
+}
+
+function photoGroupSuggestions(){
+  var opts = [];
+  editState.units.forEach(function(u, idx){
+    opts.push('ИБП #' + (idx+1) + '/Общее фото');
+    STATUS_ITEMS.forEach(function(item){ opts.push('ИБП #' + (idx+1) + '/' + item.title); });
+  });
+  opts.push('Помещение', 'Нагрузки');
+  editState.genset.forEach(function(g, idx){ opts.push('ДГУ #' + (idx+1)); });
+  return opts.map(function(o){ return '<option value="' + esc(o) + '">'; }).join('');
+}
+
+function renderEditUnits(){
+  var html = editState.units.map(function(u, idx){
+    var statusHtml = STATUS_ITEMS.map(function(item){
+      var s = u.statuses[item.key];
+      return ''+
+        '<div class="edit-status-item">'+
+          '<div class="item-title">' + item.title + '</div>'+
+          '<select onchange="editState.units[' + idx + '].statuses[\'' + item.key + '\'].value=this.value">'+
+            '<option value=""' + (s.value===''?' selected':'') + '>не отмечено</option>'+
+            '<option value="green"' + (s.value==='green'?' selected':'') + '>🟢 Норма</option>'+
+            '<option value="yellow"' + (s.value==='yellow'?' selected':'') + '>🟡 Замечание</option>'+
+            '<option value="red"' + (s.value==='red'?' selected':'') + '>🔴 Неисправность</option>'+
+          '</select>'+
+          '<div class="mic-row" style="margin-top:6px;">'+
+            '<textarea id="eus_' + idx + '_' + item.key + '" oninput="editState.units[' + idx + '].statuses[\'' + item.key + '\'].comment=this.value">' + esc(s.comment) + '</textarea>'+
+            '<button type="button" class="mic-btn" onclick="toggleMic(this,\'eus_' + idx + '_' + item.key + '\')">🎤</button>'+
+          '</div>'+
+        '</div>';
+    }).join('');
+
+    return '<div class="sub-card">'+
+      (editState.units.length > 1 ? '<button type="button" class="remove-btn" onclick="editState.units.splice('+idx+',1);renderEditUnits()">✕</button>' : '')+
+      '<div class="sub-title">ИБП #' + (idx+1) + '</div>'+
+      '<div class="row2">'+
+        '<div class="edit-field"><label>Модель</label><input type="text" value="' + esc(u.model) + '" oninput="editState.units['+idx+'].model=this.value"></div>'+
+        '<div class="edit-field"><label>Серийный №</label><input type="text" value="' + esc(u.serial) + '" oninput="editState.units['+idx+'].serial=this.value"></div>'+
+      '</div>'+
+      '<div class="row2">'+
+        '<div class="row2">'+
+          '<div class="edit-field"><label>Мощность ИБП</label><input type="text" inputmode="decimal" value="' + esc(u.power) + '" oninput="editState.units['+idx+'].power=this.value"></div>'+
+          '<div class="edit-field"><label>Ед. измерения</label>'+
+            '<select onchange="editState.units['+idx+'].powerUnit=this.value">'+
+              '<option value="кВА"' + ((u.powerUnit||'кВА')==='кВА'?' selected':'') + '>кВА</option>'+
+              '<option value="кВт"' + (u.powerUnit==='кВт'?' selected':'') + '>кВт</option>'+
+            '</select>'+
+          '</div>'+
+        '</div>'+
+        '<div class="edit-field"><label>Тип шкафа</label><input type="text" value="' + esc(u.cabinetType) + '" oninput="editState.units['+idx+'].cabinetType=this.value"></div>'+
+        '<div class="edit-field"><label>Кол-во шкафов</label><input type="text" value="' + esc(u.cabinetCount) + '" oninput="editState.units['+idx+'].cabinetCount=this.value"></div>'+
+      '</div>'+
+      '<div class="row2">'+
+        '<div class="edit-field"><label>Кол-во АКБ</label><input type="text" value="' + esc(u.batteryCount) + '" oninput="editState.units['+idx+'].batteryCount=this.value"></div>'+
+        '<div class="edit-field"><label>Ёмкость АКБ</label><input type="text" value="' + esc(u.batteryCapacity) + '" oninput="editState.units['+idx+'].batteryCapacity=this.value"></div>'+
+      '</div>'+
+      '<div class="row2">'+
+        '<div class="edit-field"><label>Модель АКБ</label><input type="text" value="' + esc(u.batteryModel) + '" oninput="editState.units['+idx+'].batteryModel=this.value"></div>'+
+        '<div class="edit-field"><label>Год АКБ</label><input type="text" value="' + esc(u.batteryYear) + '" oninput="editState.units['+idx+'].batteryYear=this.value"></div>'+
+      '</div>'+
+      '<div class="section-title" style="margin-top:10px;">Состояние систем</div>'+
+      statusHtml+
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="add-btn" onclick="addEditUnit()">+ Добавить ИБП</button>';
+  document.getElementById('editUnits').innerHTML = html;
+}
+
+function addEditUnit(){
+  var statuses = {};
+  STATUS_ITEMS.forEach(function(item){ statuses[item.key] = { value:'', comment:'' }; });
+  editState.units.push({model:'',serial:'',power:'',powerUnit:'кВА',cabinetType:'',cabinetCount:'',batteryCount:'',batteryCapacity:'',batteryModel:'',batteryYear:'',roomTemp:'',statuses:statuses});
+  renderEditUnits();
+}
+
+function renderEditLoads(){
+  var html = editState.loads.map(function(l, idx){
+    return '<div class="sub-card">'+
+      '<button type="button" class="remove-btn" onclick="editState.loads.splice('+idx+',1);renderEditLoads()">✕</button>'+
+      '<div class="sub-title">Нагрузка #' + (idx+1) + '</div>'+
+      '<div class="edit-field"><label>Название</label><input type="text" value="' + esc(l.name) + '" oninput="editState.loads['+idx+'].name=this.value"></div>'+
+      '<div class="edit-field"><label>Мощность</label><input type="text" value="' + esc(l.power) + '" oninput="editState.loads['+idx+'].power=this.value"></div>'+
+      '<div class="edit-field"><label>Комментарий</label><textarea oninput="editState.loads['+idx+'].comment=this.value">' + esc(l.comment) + '</textarea></div>'+
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="add-btn" onclick="editState.loads.push({name:\'\',power:\'\',comment:\'\'});renderEditLoads()">+ Добавить нагрузку</button>';
+  document.getElementById('editLoads').innerHTML = html;
+}
+
+function renderEditGenset(){
+  var html = editState.genset.map(function(g, idx){
+    return '<div class="sub-card">'+
+      '<button type="button" class="remove-btn" onclick="editState.genset.splice('+idx+',1);renderEditGenset()">✕</button>'+
+      '<div class="sub-title">ДГУ #' + (idx+1) + '</div>'+
+      '<div class="row2">'+
+        '<div class="edit-field"><label>Модель</label><input type="text" value="' + esc(g.model) + '" oninput="editState.genset['+idx+'].model=this.value"></div>'+
+        '<div class="edit-field"><label>Серийный №</label><input type="text" value="' + esc(g.serial) + '" oninput="editState.genset['+idx+'].serial=this.value"></div>'+
+      '</div>'+
+      '<div class="edit-field"><label>Комментарий</label><textarea oninput="editState.genset['+idx+'].comment=this.value">' + esc(g.comment) + '</textarea></div>'+
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="add-btn" onclick="editState.genset.push({model:\'\',serial:\'\',power:\'\',motohours:\'\',status:\'\',comment:\'\'});renderEditGenset()">+ Добавить ДГУ</button>';
+  document.getElementById('editGenset').innerHTML = html;
+}
+
+// ===== Фото в режиме редактирования =====
+function loadEditPhotos(){
+  var folderId = extractFolderId(currentAct.folderUrl);
+  var container = document.getElementById('editPhotos');
+  if(!folderId){ if(container) container.innerHTML = '<span class="no-photos">Папка с фото не найдена</span>'; return; }
+  callGet('getPhotos', { folderId: folderId })
+    .then(function(groups){ editPhotoGroups = groups; renderEditPhotos(); })
+    .catch(function(err){ if(container) container.innerHTML = '<span class="no-photos">Ошибка загрузки: ' + err.message + '</span>'; });
+}
+
+function renderEditPhotos(){
+  var container = document.getElementById('editPhotos');
+  if(!container) return;
+  if(!editPhotoGroups.length){ container.innerHTML = '<span class="no-photos">Фото нет</span>'; return; }
+  container.innerHTML = editPhotoGroups.map(function(g){
+    var directImgs = g.photos.map(function(p){
+      return '<div class="photo-edit-item"><img src="' + p.url + '" onclick="openLightbox(\'' + p.url + '\')"><button type="button" class="photo-del-btn" onclick="deletePhotoFromEdit(\'' + p.id + '\',\'' + g.group.replace(/'/g,"\\'") + '\',null)">✕</button></div>';
+    }).join('');
+    var subHtml = '';
+    if(g.subgroups && g.subgroups.length){
+      subHtml = g.subgroups.map(function(sg){
+        var imgs = sg.photos.map(function(p){
+          return '<div class="photo-edit-item"><img src="' + p.url + '" onclick="openLightbox(\'' + p.url + '\')"><button type="button" class="photo-del-btn" onclick="deletePhotoFromEdit(\'' + p.id + '\',\'' + g.group.replace(/'/g,"\\'") + '\',\'' + sg.group.replace(/'/g,"\\'") + '\')">✕</button></div>';
+        }).join('');
+        return '<div class="photo-subgroup-title">' + esc(sg.group) + ' (' + sg.photos.length + ')</div><div class="photo-grid">' + imgs + '</div>';
+      }).join('');
+    }
+    return '<div class="photo-group-title">' + esc(g.group) + '</div>' + (directImgs ? '<div class="photo-grid">' + directImgs + '</div>' : '') + subHtml;
+  }).join('');
+}
+
+function deletePhotoFromEdit(fileId, group, subgroup){
+  if(!confirm('Удалить это фото? Оно уйдёт в корзину Google Диска.')) return;
+  callPost('deletePhoto', { fileId: fileId })
+    .then(function(){
+      var g = editPhotoGroups.find(function(x){ return x.group === group; });
+      if(g){
+        if(subgroup){
+          var sg = (g.subgroups || []).find(function(x){ return x.group === subgroup; });
+          if(sg) sg.photos = sg.photos.filter(function(p){ return p.id !== fileId; });
+          g.subgroups = (g.subgroups || []).filter(function(x){ return x.photos.length; });
+        } else {
+          g.photos = g.photos.filter(function(p){ return p.id !== fileId; });
+        }
+      }
+      editPhotoGroups = editPhotoGroups.filter(function(x){ return x.photos.length || (x.subgroups && x.subgroups.length); });
+      renderEditPhotos();
+    })
+    .catch(function(err){ alert('Не удалось удалить: ' + err.message); });
+}
+
+function addEditPhoto(evt){
+  var file = evt.target.files[0];
+  if(!file) return;
+  var group = (document.getElementById('ed_photoGroup').value || 'Общие фото').trim();
+  var folderId = extractFolderId(currentAct.folderUrl);
+  if(!folderId){ alert('Не найдена папка акта'); return; }
+  var reader = new FileReader();
+  reader.onload = function(){
+    var base64 = reader.result.split(',')[1];
+    var fname = group.replace(/[\s\/]+/g,'_') + '_' + Date.now() + '.jpg';
+    callPost('uploadPhoto', { base64: base64, fileName: fname, folderId: folderId, mimeType: file.type || 'image/jpeg', group: group })
+      .then(function(){ loadEditPhotos(); })
+      .catch(function(err){ alert('Ошибка загрузки: ' + err.message); });
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveEdit(){
+  var map = {green:'Норма', yellow:'Замечание', red:'Неисправность'};
+  var unitsOut = editState.units.map(function(u){
+    var statusesOut = {};
+    STATUS_ITEMS.forEach(function(item){
+      var s = u.statuses[item.key];
+      var label = map[s.value] || 'не отмечено';
+      statusesOut[item.key] = s.comment ? (label + ' — ' + s.comment) : label;
+    });
+    return Object.assign({}, u, { statuses: statusesOut });
+  });
+
+  var payload = {
+    client: editState.client, contact: editState.contact, address: editState.address,
+    basis: editState.basis, engineer: editState.engineer,
+    units: unitsOut, loads: editState.loads, genset: editState.genset,
+    conclusion: editState.conclusion
+  };
+
+  callPost('updateAct', { actNumber: currentAct.actNumber, payload: payload })
+    .then(function(){
+      Object.assign(currentAct, {
+        client: payload.client, contact: payload.contact, address: payload.address,
+        basis: payload.basis, engineer: payload.engineer,
+        unitsJson: JSON.stringify(payload.units), loadsJson: JSON.stringify(payload.loads),
+        gensetJson: JSON.stringify(payload.genset), conclusion: payload.conclusion
+      });
+      renderViewMode();
+    })
+    .catch(function(err){ alert('Не удалось сохранить: ' + err.message); });
+}
+
+// ===== Голосовой ввод в режиме редактирования =====
+var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+var activeRecognition = null;
+function toggleMic(btnEl, textareaId){
+  if(!Recognition){ alert('Голосовой ввод не поддерживается в этом браузере.'); return; }
+  if(activeRecognition){ activeRecognition.stop(); return; }
+  var textarea = document.getElementById(textareaId);
+  var rec = new Recognition();
+  rec.lang = 'ru-RU'; rec.continuous = true; rec.interimResults = false;
+  rec.onresult = function(e){
+    var chunk = '';
+    for(var i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal) chunk += e.results[i][0].transcript + ' ';
+    }
+    if(chunk){
+      textarea.value = (textarea.value ? textarea.value.trim() + ' ' : '') + chunk.trim();
+      textarea.dispatchEvent(new Event('input'));
+    }
+  };
+  rec.onend = function(){ btnEl.classList.remove('rec'); activeRecognition = null; };
+  rec.onerror = function(e){ btnEl.classList.remove('rec'); activeRecognition = null; if(e.error !== 'no-speech') alert('Ошибка распознавания: ' + e.error); };
+  activeRecognition = rec;
+  btnEl.classList.add('rec');
+  rec.start();
+}
+
+// ===== Печать по брендированному шаблону =====
+
+// Миниатюра Google Drive вместо полного файла (в разы меньше и быстрее)
+function thumbUrl(p, w){
+  if(p && p.id) return 'https://drive.google.com/thumbnail?id=' + p.id + '&sz=w' + (w || 400);
+  return p ? p.url : '';
+}
+
+// Ждём реальной загрузки картинок (с ограничением по времени), затем печатаем
+function waitImagesThenPrint(container, maxMs){
+  var imgs = Array.prototype.slice.call(container.querySelectorAll('img'));
+  var pending = imgs.filter(function(im){ return !im.complete; });
+  if(!pending.length){ window.print(); return; }
+  var done = 0, finished = false;
+  function finish(){
+    if(finished) return;
+    finished = true;
+    window.print();
+  }
+  pending.forEach(function(im){
+    function tick(){ done++; if(done >= pending.length) finish(); }
+    im.addEventListener('load', tick, { once:true });
+    im.addEventListener('error', tick, { once:true });
+  });
+  setTimeout(finish, maxMs || 8000);
+}
+
+function printAct(){
+  var act = currentAct;
+  var cb = document.getElementById('printPhotos');
+  var withPhotos = cb ? cb.checked : true;
+  var folderId = extractFolderId(act.folderUrl);
+  var tpl = document.getElementById('printTemplate');
+
+  function go(groups, flag){
+    renderPrintTemplate(act, groups, flag);
+    if(flag) waitImagesThenPrint(tpl, 8000);
+    else setTimeout(function(){ window.print(); }, 100);
+  }
+
+  if(!withPhotos || !folderId){ go([], false); return; }
+
+  // Фото уже загружены при просмотре акта — не тянем их с сервера повторно
+  if(viewPhotoGroups && viewPhotoGroups.length){ go(viewPhotoGroups, true); return; }
+
+  go([], false);
+  callGet('getPhotos', { folderId: folderId })
+    .then(function(groups){ viewPhotoGroups = groups; go(groups, true); })
+    .catch(function(){ go([], false); });
+}
+
+function pRow(label, value){
+  return '<div class="row"><span class="k">' + label + '</span><span class="v">' + esc(value || '—') + '</span></div>';
+}
+function pInfoItem(label, value){
+  return '<div class="pinfo-item"><div class="lbl">' + label + '</div><div class="val">' + esc(value || '—') + '</div></div>';
+}
+
+function pPhotoGroupsHtml(groups){
+  return (groups || []).map(function(g){
+    var direct = g.photos.map(function(p){ return '<img src="' + thumbUrl(p, 400) + '" loading="eager">'; }).join('');
+    var subHtml = '';
+    if(g.subgroups && g.subgroups.length){
+      subHtml = g.subgroups.map(function(sg){
+        var imgs = sg.photos.map(function(p){ return '<img src="' + thumbUrl(p, 400) + '" loading="eager">'; }).join('');
+        return '<div class="pphoto-sub">' + esc(sg.group) + '</div><div class="pphoto-grid">' + imgs + '</div>';
+      }).join('');
+    }
+    return '<div class="pphoto-group"><div class="pphoto-name">' + esc(g.group) + '</div>'+
+      (direct ? '<div class="pphoto-grid">' + direct + '</div>' : '') + subHtml + '</div>';
+  }).join('');
+}
+
+/* Premium A4 audit report. The journal screen and TO print template are unchanged. */
+function renderAuditPremiumV3(act, photoGroups){
+  var U=safeParse(act.unitsJson,[]), G=photoGroups||[], I=STATUS_ITEMS||[], E=esc;
+  function s(x){return /^Неисправность/.test(x||'')?'bad':(/^Замечание/.test(x||'')?'warn':'ok');}
+  function dot(x){var c=s(x);return '<i class="ar-dot '+c+'">'+(c==='ok'?'✓':c==='warn'?'!':'×')+'</i>';}
+  function dots(u){return I.map(function(i){return dot(u.statuses&&u.statuses[i.key]);}).join('');}
+  function val(x){return E(x||'—');}
+  function ct(c){return U.reduce(function(n,u){return n+I.filter(function(i){return s(u.statuses&&u.statuses[i.key])===c;}).length;},0);}
+  var W=ct('warn'), B=ct('bad'), score=Math.max(55,100-W*3-B*10);
+  var logo=typeof LOGO_B64==='undefined'?'':'data:image/png;base64,'+LOGO_B64;
+  /* These two small local assets are included with the ready package. */
+  var hero='audit-cover-hero.png';
+  var end='audit-technician.png';
+  function hd(n,t){return '<header class="ar-h"><img src="'+logo+'"><b>АКТ ТЕХНИЧЕСКОЙ ДИАГНОСТИКИ</b><em>'+n+'</em></header><h2>'+t+'</h2>';}
+  function ft(n){return '<footer class="ar-f"><span>ERNES INDUSTRIAL POWER SYSTEMS</span><span>Надёжность. Качество. Партнёрство.</span><b>'+n+'</b></footer>';}
+  function uphoto(i){var r='';G.some(function(g){if(unitIndexFromGroup(g.group)===(i+1)){var p=(g.photos||[])[0];if(!p&&(g.subgroups||[])[0])p=(g.subgroups[0].photos||[])[0];if(p)r=thumbUrl(p,900);return !!r;}return false;});return r||hero;}
+  function unit(u,i){var a=[['Серийный номер',u.serial],['Мощность',u.power?(u.power+' '+(u.powerUnit||'кВА')):'—'],['Тип шкафа',u.cabinetType],['АКБ',u.batteryCount?(u.batteryCount+' шт.'):'—'],['Температура',u.roomTemp?(u.roomTemp+' °C'):'—']];return '<article class="ar-unit"><div><b>ИБП #'+(i+1)+' — '+val(u.model)+'</b><span>'+dots(u)+'</span></div><section><dl>'+a.map(function(x){return '<p><small>'+x[0]+'</small><strong>'+val(x[1])+'</strong></p>';}).join('')+'</dl><img src="'+uphoto(i)+'"><ul>'+I.map(function(x){var q=u.statuses&&u.statuses[x.key];return '<li>'+dot(q)+'<span>'+E(x.title)+'</span><em>'+E(statusLabelWord(q)||'Норма')+'</em></li>';}).join('')+'</ul></section></article>';}
+  var rows=U.map(function(u,i){return '<tr><td>'+(i+1)+'</td><td><b>ИБП #'+(i+1)+'</b></td><td>'+val(u.model)+'</td><td>'+val(u.power?(u.power+' '+(u.powerUnit||'кВА')):'—')+'</td><td>'+val(u.serial)+'</td><td>'+dots(u)+'</td></tr>';}).join('')||'<tr><td colspan="6">Оборудование не добавлено</td></tr>';
+  var gallery=G.map(function(g){var name=E(g.group||'Фото объекта'), a=(g.photos||[]).map(function(p){return {p:p,n:name};});(g.subgroups||[]).forEach(function(z){(z.photos||[]).forEach(function(p){a.push({p:p,n:name+' — '+E(z.group||'узел')});});});return a.map(function(x){return '<figure><img src="'+thumbUrl(x.p,900)+'"><figcaption>'+x.n+'</figcaption></figure>';}).join('');}).join('')||'<div class="ar-empty">Фотографии к акту не приложены.</div>';
+  var css='<style id="audit-report-v3">@page{size:A4;margin:0}.audit-report{font-family:Inter,Arial,sans-serif;color:#0e2e58}.audit-report *{box-sizing:border-box}.audit-report .ar-page{position:relative;width:210mm;height:297mm;background:#fff;padding:15mm 15mm 16mm;overflow:hidden;break-after:page;page-break-after:always}.audit-report .ar-page:last-child{break-after:auto;page-break-after:auto}.ar-h{height:12mm;border-bottom:1px solid #e1e8f0;display:flex;align-items:center;gap:5mm;font-size:7.5pt;color:#123e74}.ar-h img{width:27mm;height:11mm;object-fit:contain;object-position:left}.ar-h em{font-style:normal;margin-left:auto;border:1px solid #dce6f0;border-radius:3mm;padding:1mm 2.5mm}.audit-report h2{font-size:15pt;margin:6mm 0 5mm;color:#123e74}.ar-f{height:10mm;position:absolute;bottom:0;left:0;right:0;background:#0e2e58;color:#fff;padding:3mm 15mm;display:flex;font-size:6.5pt}.ar-f span:nth-child(2){margin-left:auto;opacity:.8}.ar-f b{margin-left:6mm;color:#b7e95d}.ar-dot{display:inline-flex;width:3.2mm;height:3.2mm;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:6pt;font-weight:900;font-style:normal;margin-right:1mm}.ar-dot.ok{background:#34a853}.ar-dot.warn{background:#f9ab00}.ar-dot.bad{background:#ea4335}.ar-cover{padding:0!important;background:#f6f8fb!important}.ar-cover>img{position:absolute;right:0;top:0;width:61%;height:75%;object-fit:cover;object-position:right}.ar-cover:after{content:"";position:absolute;right:-30mm;top:0;width:82mm;height:205mm;background:#123e74;opacity:.92;clip-path:polygon(38% 0,100% 0,100% 100%,0 73%)}.ar-cover-copy{position:absolute;z-index:2;top:15mm;left:16mm;width:85mm}.ar-cover-copy img{width:48mm;height:26mm;object-fit:contain;object-position:left}.ar-cover-copy small{display:block;margin-top:27mm;color:#66bb2e;font-size:8pt;font-weight:900;letter-spacing:1px}.ar-cover-copy h1{font-size:35pt;line-height:.95;letter-spacing:-1.5px;margin:4mm 0;color:#123e74}.ar-cover-copy h1 span{display:block;font-size:16pt;line-height:1.1;letter-spacing:0;margin-top:4mm}.ar-cover-copy p{border-left:2px solid #66bb2e;padding-left:4mm;margin-top:12mm;font-size:8.2pt;line-height:1.7}.ar-scorebar{position:absolute;z-index:3;bottom:18mm;left:16mm;right:16mm;padding:6mm 7mm;border-radius:4mm;background:linear-gradient(100deg,#0e2e58,#123e74);color:#fff;display:grid;grid-template-columns:1.7fr repeat(3,1fr);gap:4mm}.ar-scorebar b{font-size:21pt;color:#b7e95d}.ar-scorebar small{display:block;font-size:6.7pt;opacity:.82}.ar-info{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:7mm}.ar-info div{height:30mm;border:1px solid #e5ebf2;border-radius:3mm;padding:4mm;box-shadow:0 1mm 2.5mm #0e2e5810}.ar-info i{display:block;color:#66bb2e;font-size:15pt;font-style:normal}.ar-info small,.ar-unit small{display:block;color:#71839b;font-size:6pt;margin:1.5mm 0 1mm}.ar-info b{font-size:7pt;line-height:1.25}.ar-t{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #dfe8f0;border-radius:3mm;overflow:hidden;font-size:7pt}.ar-t th{background:#0e2e58;color:#fff;padding:3mm;text-align:left;font-size:6.3pt}.ar-t td{padding:3mm;border-bottom:1px solid #e5ebf2}.ar-t tr:last-child td{border-bottom:0}.ar-legend{font-size:7pt;margin-top:4mm}.ar-summary{display:grid;grid-template-columns:62mm 1fr;gap:5mm}.ar-panel,.ar-score{border:1px solid #e1e8f0;border-radius:4mm;padding:5mm;box-shadow:0 1mm 3mm #0e2e580d}.ar-score{text-align:center;font-size:8pt;font-weight:900}.ar-ring{width:47mm;height:47mm;border:5mm solid #34a853;border-left-color:#dce5ee;border-radius:50%;margin:auto;display:flex;align-items:center;justify-content:center;font-size:24pt;color:#123e74}.ar-panel h3{font-size:8.5pt;margin:0 0 3mm}.ar-line{display:flex;justify-content:space-between;padding:2.2mm 0;border-bottom:1px solid #edf1f5;font-size:7.2pt}.ar-line b{color:#34a853;letter-spacing:1px}.ar-list{list-style:none;padding:0;margin:0}.ar-list li{font-size:7pt;line-height:1.35;padding:2mm 0;border-bottom:1px solid #edf1f5}.ar-stat{position:absolute;bottom:16mm;left:15mm;right:15mm;border-radius:3mm;background:#0e2e58;color:#fff;display:grid;grid-template-columns:repeat(4,1fr);padding:3mm;text-align:center}.ar-stat b{display:block;font-size:13pt;color:#b7e95d}.ar-stat small{font-size:6pt}.ar-units{display:grid;grid-template-columns:1fr 1fr;gap:3mm}.ar-unit{border:1px solid #dfe8f0;border-radius:3mm;overflow:hidden;box-shadow:0 1mm 2mm #0e2e580c}.ar-unit>div{background:#eff5fa;padding:2.3mm 3mm;color:#123e74;font-size:7.4pt}.ar-unit>div span{float:right}.ar-unit section{display:grid;grid-template-columns:1fr 22mm 1.3fr;gap:2mm;padding:2.5mm}.ar-unit dl{margin:0}.ar-unit dl p{display:flex;justify-content:space-between;border-bottom:1px solid #edf1f5;gap:1mm;padding:.8mm 0;margin:0}.ar-unit small{margin:0;font-size:5.5pt}.ar-unit strong{font-size:5.7pt;text-align:right}.ar-unit img{width:22mm;height:35mm;object-fit:cover;border-radius:1.5mm}.ar-unit ul{list-style:none;padding:0;margin:0}.ar-unit li{display:flex;align-items:center;font-size:5.5pt;padding:.55mm 0;border-bottom:1px solid #edf1f5}.ar-unit li .ar-dot{width:2.4mm;height:2.4mm;font-size:4.5pt}.ar-unit li em{margin-left:auto;font-size:5pt;color:#63758b;font-style:normal}.ar-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.ar-gallery figure{margin:0;border:1px solid #e1e8f0;border-radius:2.5mm;overflow:hidden}.ar-gallery img{display:block;width:100%;height:35mm;object-fit:cover}.ar-gallery figcaption{font-size:6.1pt;color:#123e74;padding:2mm;min-height:9mm;font-weight:800}.ar-note{margin-top:5mm;background:#f0f6fc;border:1px solid #dbe8f4;border-radius:3mm;padding:4mm;font-size:7pt;line-height:1.45}.ar-empty{padding:10mm;text-align:center;color:#71839b;background:#f6f8fb}.ar-rec{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.ar-rec div{border:1px solid #e1e8f0;border-radius:3mm;padding:4mm;min-height:50mm;font-size:7.2pt;line-height:1.45}.ar-rec h3{font-size:8pt;margin:0 0 3mm}.ar-rec div:nth-child(1){border-color:#f2cccc}.ar-rec div:nth-child(1) h3{color:#ea4335}.ar-rec div:nth-child(2){border-color:#f6dca2}.ar-rec div:nth-child(2) h3{color:#c68100}.ar-rec div:nth-child(3){border-color:#cde7d1}.ar-rec div:nth-child(3) h3{color:#23843b}.ar-contact{position:absolute;bottom:10mm;left:0;right:0;height:68mm;background:#0e2e58;color:#fff;overflow:hidden}.ar-contact>img{width:52%;height:100%;object-fit:cover;opacity:.82}.ar-contact:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 25%,#0e2e58 57%)}.ar-contact>div{position:absolute;z-index:1;right:15mm;top:10mm;width:73mm}.ar-contact h3{font-size:15pt;margin:0 0 3mm}.ar-contact p{font-size:8pt;line-height:1.7;margin:0}@media print{body>*:not(#printTemplate){display:none!important}#printTemplate{display:block!important}.audit-report .ar-page{margin:0!important;box-shadow:none!important}}</style>';
+  if(!document.getElementById('audit-report-v3'))document.head.insertAdjacentHTML('beforeend',css);
+  var H='<main class="audit-report">';
+  H+='<section class="ar-page ar-cover"><img src="'+hero+'"><div class="ar-cover-copy"><img src="'+logo+'"><small>КОМПЛЕКСНОЕ ОБСЛЕДОВАНИЕ</small><h1>АКТ<span>ТЕХНИЧЕСКОЙ ДИАГНОСТИКИ</span></h1><p><b>№ '+val(act.actNumber)+'</b><br>Дата обследования: '+val(act.date)+'<br>Заказчик: '+val(act.client)+'<br>Объект: '+val(act.address)+'<br>Инженер: '+val(act.engineer)+'</p></div><div class="ar-scorebar"><div><small>ОБЩАЯ ОЦЕНКА ОБЪЕКТА</small><b>'+score+'%</b><small>Техническое состояние</small></div><div><b>'+U.length+'</b><small>ИБП обследовано</small></div><div><b>'+W+'</b><small>Замечаний</small></div><div><b>'+B+'</b><small>Критических</small></div></div></section>';
+  H+='<section class="ar-page">'+hd(2,'1. ОБЩАЯ ИНФОРМАЦИЯ')+'<div class="ar-info"><div><i>⌖</i><small>ОБЪЕКТ</small><b>'+val(act.address)+'</b></div><div><i>♙</i><small>КОНТАКТНОЕ ЛИЦО</small><b>'+val(act.contact)+'</b></div><div><i>▣</i><small>ДАТА ОБСЛЕДОВАНИЯ</small><b>'+val(act.date)+'</b></div><div><i>⚙</i><small>ИНЖЕНЕР</small><b>'+val(act.engineer)+'</b></div></div><h2 style="font-size:12pt">2. СОСТАВ ОБСЛЕДУЕМОЙ СИСТЕМЫ</h2><table class="ar-t"><thead><tr><th>№</th><th>Оборудование</th><th>Модель</th><th>Мощность</th><th>Серийный номер</th><th>Статус</th></tr></thead><tbody>'+rows+'</tbody></table><div class="ar-legend">'+dot('Норма')+' Норма &nbsp;&nbsp; '+dot('Замечание')+' Предупреждение &nbsp;&nbsp; '+dot('Неисправность')+' Критично</div>'+ft(2)+'</section>';
+  var dirs=['ИБП','АКБ','Помещение','Система охлаждения','Нагрузка','Электробезопасность'].map(function(x,i){return '<div class="ar-line"><span>'+x+'</span><b>'+((i===1&&W)?'● ● ● ● ◌':'● ● ● ● ●')+'</b></div>';}).join('');
+  H+='<section class="ar-page">'+hd(3,'ОБЩАЯ ОЦЕНКА ОБЪЕКТА')+'<div class="ar-summary"><div class="ar-score"><div class="ar-ring">'+score+'%</div>ХОРОШЕЕ СОСТОЯНИЕ</div><div class="ar-panel"><h3>ОЦЕНКА ПО НАПРАВЛЕНИЯМ</h3>'+dirs+'</div></div><div class="ar-summary" style="margin-top:5mm;grid-template-columns:1fr 1fr"><div class="ar-panel"><h3>КЛЮЧЕВЫЕ ВЫВОДЫ</h3><ul class="ar-list"><li>'+dot('Норма')+'Система функционирует в штатном режиме</li><li>'+dot(W?'Замечание':'Норма')+'Выявленные замечания не требуют срочного вмешательства</li><li>'+dot('Норма')+'Рекомендуется плановое техническое обслуживание</li></ul></div><div class="ar-panel"><h3>ОСНОВНЫЕ ЗАМЕЧАНИЯ</h3><ul class="ar-list"><li>'+dot(B?'Неисправность':W?'Замечание':'Норма')+E(B?'Обнаружены критические замечания. Требуется устранение в приоритетном порядке.':W?'Выявлены замечания. Рекомендуется плановое техническое обслуживание.':'По результатам обследования оборудование находится в работоспособном состоянии.')+'</li></ul></div></div><div class="ar-stat"><div><b>'+U.length+'</b><small>ИБП</small></div><div><b>'+U.reduce(function(n,u){return n+(+u.batteryCount||0);},0)+'</b><small>АКБ</small></div><div><b>'+val(act.duration)+'</b><small>Длительность работ</small></div><div><b>'+val(act.weather)+'</b><small>Температура / погода</small></div></div>'+ft(3)+'</section>';
+  H+='<section class="ar-page">'+hd(4,'СОСТОЯНИЕ ОБОРУДОВАНИЯ')+'<div class="ar-units">'+U.map(unit).join('')+'</div>'+ft(4)+'</section>';
+  H+='<section class="ar-page">'+hd(5,'ФОТОФИКСАЦИЯ')+'<div class="ar-gallery">'+gallery+'</div><div class="ar-note"><b>Примечание.</b> Каждая фотография подписана названием ИБП и узла из журнала. Фотоматериалы фиксируют состояние оборудования на момент обследования.</div>'+ft(5)+'</section>';
+  H+='<section class="ar-page">'+hd(6,'ИТОГОВЫЕ РЕКОМЕНДАЦИИ')+'<div class="ar-rec"><div><h3>△ СРОЧНО</h3>'+(B?'Устранить критические замечания, отражённые в карточках оборудования.':'Критических замечаний по результатам обследования не выявлено.')+'</div><div><h3>△ В ТЕЧЕНИЕ МЕСЯЦА</h3>'+(W?'Выполнить рекомендации по замечаниям и провести контрольный осмотр.':'Провести плановую проверку АКБ и режима работы оборудования.')+'</div><div><h3>◯ ПЛАНОВО</h3>Плановое ТО всех ИБП согласно регламенту. Проверка вентиляции и условий эксплуатации.</div></div><div class="ar-contact"><img src="'+end+'"><div><h3>МЫ НА СВЯЗИ</h3><p>+7 (701) 995 44 75<br>info@ernes.kz<br>www.ernes.kz<br>г. Алматы, ул. Жандосова, 126</p></div></div>'+ft(6)+'</section></main>';
+  document.getElementById('printTemplate').innerHTML=H;
+}
+
+function renderPrintTemplate(act, photoGroups, withPhotos){ renderAuditPremiumV3(act, photoGroups); return;
+  photoGroups = photoGroups || [];
+  if(withPhotos === undefined) withPhotos = true;
+  var units = safeParse(act.unitsJson, []);
+  var loads = safeParse(act.loadsJson, []);
+  var genset = safeParse(act.gensetJson, []);
+
+  var unitsHtml = units.length ? units.map(function(u, i){
+    var unitPhotos = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === (i+1); }) : [];
+    var headerDots = STATUS_ITEMS.map(function(item){
+      return '<span class="pdot ' + statusClass(u.statuses ? u.statuses[item.key] : '') + '"></span>';
+    }).join('');
+    var statusHtml = STATUS_ITEMS.map(function(item){
+      var raw = u.statuses ? u.statuses[item.key] : '';
+      var cmt = statusComment(raw);
+      return '<div class="pstatus-line"><div class="dot ' + statusClass(raw) + '" style="background:' + (statusClass(raw)==='green'?'#3CB043':statusClass(raw)==='yellow'?'#E0A800':statusClass(raw)==='red'?'#D9362B':'#ccc') + '"></div>'+
+        '<div class="txt"><b>' + item.title + '</b>' + (cmt ? '<span>' + esc(cmt) + '</span>' : '<span>' + esc(statusLabelWord(raw) || 'не отмечено') + '</span>') + '</div></div>';
+    }).join('');
+    return '<div class="punit">'+
+      '<div class="punit-title"><span>ИБП #' + (i+1) + (u.model ? ' — ' + esc(u.model) : '') + (u.serial ? ' (' + esc(u.serial) + ')' : '') + '</span><span class="pdots" aria-label="Статусы систем">' + headerDots + '</span></div>'+
+      '<div class="punit-body">'+
+        '<div class="punit-info">'+
+          pRow('Серийный №', u.serial) +
+          pRow('Мощность', u.power ? u.power + ' ' + (u.powerUnit || 'кВА') : '') +
+          pRow('Тип шкафа', u.cabinetType) +
+          pRow('Кол-во шкафов', u.cabinetCount) + pRow('Кол-во АКБ', u.batteryCount) +
+          pRow('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
+          pRow('Модель АКБ', u.batteryModel) + pRow('Год АКБ', u.batteryYear) +
+          pRow('Температура', u.roomTemp ? u.roomTemp + ' °C' : '') +
+        '</div>'+
+        '<div class="punit-status">' + statusHtml + '</div>'+
+      '</div>'+
+      (unitPhotos.length ? '<div style="padding:8px 10px;border-top:1px solid #eee;">' + pPhotoGroupsHtml(unitPhotos) + '</div>' : '')+
+    '</div>';
+  }).join('') : '<div class="pmini">ИБП не указаны</div>';
+
+  var loadsHtml = loads.length ? loads.map(function(l){
+    return '<div class="pmini"><div class="t">' + esc(l.name || 'Нагрузка') + '</div>' + (l.power ? l.power + ' · ' : '') + esc(l.comment || '') + '</div>';
+  }).join('') : '<div class="pmini">Нагрузки не указаны</div>';
+
+  var gensetHtml = genset.length ? genset.map(function(g, i){
+    return '<div class="pmini"><div class="t">ДГУ #' + (i+1) + (g.model ? ' — ' + esc(g.model) : '') + '</div>' + (g.serial ? 'Серийный № ' + esc(g.serial) + '. ' : '') + esc(g.comment || '') + '</div>';
+  }).join('') : '<div class="pmini">ДГУ не установлен</div>';
+
+  var otherGroups = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === null; }) : [];
+  var photosHtml = otherGroups.length ? pPhotoGroupsHtml(otherGroups) : '<div class="pmini">Прочих фото нет</div>';
+
+  document.getElementById('printTemplate').innerHTML = ''+
+    '<div class="print-fixed-footer">'+
+      '<div class="partner-band">' + PARTNER_B64.map(function(p){ return '<img src="data:image/png;base64,' + p + '">'; }).join('') + '</div>'+
+      '<div class="pdoc-footer"></div>'+
+    '</div>'+
+    '<table class="ptable"><thead><tr><td></td></tr></thead>'+
+      '<tfoot><tr><td><div class="pfoot-spacer"></div></td></tr></tfoot>'+
+      '<tbody><tr><td>'+
+      '<div class="pdoc-header">'+
+        '<div class="pheader-top">'+
+          '<div class="plogo-row"><img src="data:image/png;base64,' + LOGO_B64 + '"></div>'+
+          '<div class="pdocno"><div class="num">АКТ № ' + esc(act.actNumber) + '</div><div class="date">' + esc(act.date) + '</div></div>'+
+        '</div>'+
+        '<div class="phero">'+
+          '<div>'+
+            '<div class="ptitle">Акт аудита<span>системы бесперебойного питания</span></div>'+
+            '<div class="paccent"></div>'+
+            '<div class="pintro">Отчёт по итогам выездной диагностики: состояние оборудования, выявленные замечания и рекомендации по дальнейшей эксплуатации.</div>'+
+          '</div>'+
+          '<img class="phero-img" src="audit-ups-hero.png" alt="Источник бесперебойного питания">'+
+        '</div>'+
+      '</div>'+
+      '<div class="pcontent">'+
+        '<div class="psection">'+
+          '<div class="psection-head">Информация об объекте</div>'+
+          '<div class="pinfo-grid">'+
+            pInfoItem('Заказчик', act.client) + pInfoItem('Контактное лицо', act.contact) +
+            pInfoItem('Адрес объекта', act.address) + pInfoItem('Основание', act.basis) +
+            pInfoItem('Инженер', act.engineer) +
+          '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Оборудование и состояние систем</div>'+
+          unitsHtml+
+        '</div>'+
+        '<div class="psection" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'+
+          '<div><div class="psection-head">Нагрузки</div>' + loadsHtml + '</div>'+
+          '<div><div class="psection-head">ДГУ</div>' + gensetHtml + '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Заключение и рекомендации</div>'+
+          '<div class="pconclusion">' + esc(act.conclusion || 'не заполнено') + '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Фотофиксация</div>'+
+          photosHtml+
+        '</div>'+
+        '<div class="psection psign-block">'+
+          '<div class="psign-item">Инженер<div class="psign-line"></div><div class="psign-caption"><span>Подпись</span><span>' + esc(act.engineer || '') + '</span></div></div>'+
+          '<div class="psign-item">Представитель заказчика<div class="psign-line"></div><div class="psign-caption"><span>Подпись</span><span>ФИО</span></div></div>'+
+        '</div>'+
+      '</div>'+
+      '</td></tr></tbody></table>'+
+    '<div class="pfinal">'+
+      '<img class="pfinal-static" src="data:image/png;base64,' + FINAL_PAGE_B64 + '">'+
+    '</div>';
+}
+
+loadActs();
+
+/* ============================================================
+   ВКЛАДКА ТО — список, детальный просмотр, печать (лист «ТО»)
+   Переиспользует общие функции диаг-журнала: callGet, esc, safeParse,
+   row, loadPhotos, fillUnitPhotos, distributePhotosToUnits,
+   renderPhotoGroupsHtml, unitIndexFromGroup, openLightbox, thumbUrl,
+   waitImagesThenPrint, pPhotoGroupsHtml.
+   ============================================================ */
+
+/* Схема чек-листа ТО — идентична форме (ключи совпадают 1:1) */
+var TO_SECTIONS = [
+  {n:1, title:'Условия эксплуатации', items:[
+    {t:'num',    key:'s1_temp',      label:'Температура в помещении', unit:'°C'},
+    {t:'num',    key:'s1_humidity',  label:'Влажность воздуха',       unit:'%'},
+    {t:'status', key:'s1_placement', label:'Выполнение требований по размещению ИБП'},
+    {t:'status', key:'s1_grounding', label:'Заземление корпусов ИБП / щитов / АКБ'},
+    {t:'num',    key:'s1_groundOhm', label:'Сопротивление контура заземления', unit:'Ом'}
+  ]},
+  {n:2, title:'Осмотр внешнего и внутреннего состояния', items:[
+    {t:'status', key:'s2_connections', label:'Электрические соединения блоков и узлов'},
+    {t:'status', key:'s2_boards',      label:'Состояние плат и прочих компонентов'},
+    {t:'status', key:'s2_fans',        label:'Состояние вентиляторов'},
+    {t:'status', key:'s2_thermo',      label:'Термография силовых соединений', photo:true}
+  ]},
+  {n:3, title:'Очистка оборудования', items:[
+    {t:'check', key:'s3_general', label:'Общая очистка оборудования'},
+    {t:'check', key:'s3_dust',    label:'Очистка от пыли (эл. блоки, силовые части)'}
+  ]},
+  {n:4, title:'Механические проверки', items:[
+    {t:'status', key:'s4_damage',     label:'Отсутствие внешних механических повреждений'},
+    {t:'status', key:'s4_extConn',    label:'Надёжность внешних подключений (щиты БЭП)'},
+    {t:'status', key:'s4_intMount',   label:'Надёжность крепления компонентов внутри'},
+    {t:'status', key:'s4_fans',       label:'Работа вентиляторов внутри ИБП'},
+    {t:'status', key:'s4_filters',    label:'Воздушные фильтры (замена при необходимости)'},
+    {t:'check',  key:'s4_torqueDone', label:'Протяжка силовых соединений по спецификации'},
+    {t:'num',    key:'s4_torqueNm',   label:'Усилие протяжки', unit:'Н·м'}
+  ]},
+  {n:5, title:'Журналы и логи', items:[
+    {t:'check', key:'s5_done', label:'Просмотр архива событий / данных оборудования'},
+    {t:'text',  key:'s5_text', label:'Что найдено в журналах'}
+  ]},
+  {n:6, title:'ПО / прошивка', items:[
+    {t:'check', key:'s6_done',    label:'Проверка ПО и аппаратного обеспечения'},
+    {t:'text',  key:'s6_version', label:'Версия ПО / прошивки, обновление'}
+  ]},
+  {n:7, title:'Проверка режимов работы', items:[
+    {t:'check', key:'s7_normal',     label:'Нормальный режим'},
+    {t:'check', key:'s7_battery',    label:'Режим работы от батарей'},
+    {t:'check', key:'s7_autobypass', label:'Автоматический байпас'},
+    {t:'check', key:'s7_manbypass',  label:'Механический байпас'},
+    {t:'check', key:'s7_transfer',   label:'Переключение bypass ↔ обратно (бесперебойность)'},
+    {t:'check', key:'s7_parallelNA', label:'Параллель/резерв — не применимо (отдельный ИБП)'},
+    {t:'check', key:'s7_loadBalance',label:'Баланс нагрузки между модулями'},
+    {t:'check', key:'s7_canbus',     label:'Статус CAN-шины синхронизации'}
+  ]},
+  {n:8, title:'Замеры входных / выходных параметров', items:[
+    {t:'phase', key:'s8_uin',  label:'Входное напряжение', unit:'В'},
+    {t:'phase', key:'s8_iin',  label:'Входной ток',        unit:'А'},
+    {t:'num',   key:'s8_fin',  label:'Частота входного напряжения', unit:'Гц'},
+    {t:'phase', key:'s8_uout', label:'Выходное напряжение', unit:'В'},
+    {t:'phase', key:'s8_iout', label:'Выходной ток',        unit:'А'},
+    {t:'num',   key:'s8_fout', label:'Частота выходного напряжения', unit:'Гц'}
+  ]},
+  {n:9, title:'Аккумуляторные батареи', items:[
+    {t:'status', key:'s10_mount',     label:'Крепление компонентов внутри батарейных модулей'},
+    {t:'num',    key:'s10_moduleV',   label:'Напряжение на батарейном модуле', unit:'В'},
+    {t:'cells',  key:'s10_cells',     label:'Элементы АКБ: напряжение и внутр. сопротивление'},
+    {t:'status', key:'s10_corrosion', label:'Коррозия / утечка электролита на клеммах'},
+    {t:'check',  key:'s10_adjust',    label:'Регулировка цепей измерения напряжения АКБ'},
+    {t:'num',    key:'s10_capacity',  label:'Остаточная ёмкость АКБ', unit:'%'}
+  ]},
+  {n:10, title:'Выпрямитель и зарядное устройство', items:[
+    {t:'check', key:'s11_nominal',  label:'Установка номинального напряжения основной сети'},
+    {t:'check', key:'s11_adjustUF', label:'Регулировка цепей измерения U/F основной сети'},
+    {t:'num',   key:'s11_chargeA',  label:'Ток заряда АКБ', unit:'А'},
+    {t:'num',   key:'s11_floatV',   label:'Напряжение поддерживающего заряда', unit:'В'}
+  ]},
+  {n:11, title:'Контрольный тест', items:[
+    {t:'status', key:'s12', label:'Реакция ИБП на пропадание входного напряжения'}
+  ]}
+];
+
+function toForEachItem(cb){ TO_SECTIONS.forEach(function(sec){ sec.items.forEach(function(it){ cb(it, sec); }); }); }
+function dotClass(v){ return (v === 'green' || v === 'yellow' || v === 'red') ? v : 'gray'; }
+function statusWord(v){ return v==='green'?'Норма':v==='yellow'?'Замечание':v==='red'?'Неисправность':'не отмечено'; }
+function getTo(u){ return (u && u.to) || {}; }
+function statusSlot(u, key){ var s = getTo(u)[key]; return (s && typeof s === 'object') ? s : {value:'', comment:''}; }
+
+function weakCellFlags(arr){
+  arr = arr || [];
+  var us = [], rs = [];
+  arr.forEach(function(c){ var u=parseFloat(c.u); if(!isNaN(u)) us.push(u); var r=parseFloat(c.r); if(!isNaN(r)) rs.push(r); });
+  var meanU = us.length ? us.reduce(function(a,b){return a+b;},0)/us.length : null;
+  var meanR = rs.length ? rs.reduce(function(a,b){return a+b;},0)/rs.length : null;
+  var flags = arr.map(function(c){
+    var u=parseFloat(c.u), r=parseFloat(c.r), weak=false;
+    if(meanU!==null && us.length>=3 && !isNaN(u) && u < meanU*0.97) weak=true;
+    if(meanR!==null && rs.length>=3 && !isNaN(r) && meanR>0 && r > meanR*1.30) weak=true;
+    return weak;
+  });
+  return { flags: flags, meanU: meanU, meanR: meanR };
+}
+function weakCellNumbers(arr){ var res=weakCellFlags(arr), out=[]; res.flags.forEach(function(w,i){ if(w) out.push(i+1); }); return out; }
+
+function unitFlagCounts(u){
+  var reds=0, yellows=0;
+  toForEachItem(function(it){ if(it.t==='status'){ var v=statusSlot(u,it.key).value; if(v==='red')reds++; else if(v==='yellow')yellows++; } });
+  var d=statusSlot(u,'defect').value; if(d==='red')reds++; else if(d==='yellow')yellows++;
+  return { reds:reds, yellows:yellows, weak: weakCellNumbers(getTo(u).s10_cells||[]).length };
+}
+function actFlagCounts(units){ var t={reds:0,yellows:0,weak:0}; (units||[]).forEach(function(u){ var c=unitFlagCounts(u); t.reds+=c.reds; t.yellows+=c.yellows; t.weak+=c.weak; }); return t; }
+function flagsPillsHtml(c){
+  var out='';
+  if(c.reds) out+='<span class="flag-pill flag-red">🔴 '+c.reds+'</span>';
+  if(c.yellows) out+='<span class="flag-pill flag-yellow">🟡 '+c.yellows+'</span>';
+  if(!c.reds && !c.yellows) out+='<span class="flag-pill flag-ok">🟢 без замечаний</span>';
+  if(c.weak) out+='<span class="flag-pill flag-batt">АКБ: слабых '+c.weak+'</span>';
+  return out;
+}
+
+/* ---- Список ТО ---- */
+function loadMaintenance(){
+  document.getElementById('actsList').innerHTML = '<div class="loading-msg">Загрузка...</div>';
+  callGet('listMaintenance')
+    .then(function(acts){ allActsTO = acts; if(currentType==='to') renderListTO(acts); })
+    .catch(function(err){ if(currentType==='to') document.getElementById('actsList').innerHTML = '<div class="empty-msg">Ошибка загрузки: ' + err.message + '</div>'; });
+}
+function renderListTO(acts){
+  var container = document.getElementById('actsList');
+  if(!acts.length){ container.innerHTML = '<div class="empty-msg">Актов ТО пока нет</div>'; return; }
+  container.innerHTML = acts.map(function(act, idx){
+    var units = safeParse(act.unitsJson, []);
+    var modelsText = units.map(function(u){ return u.model; }).filter(Boolean).join(', ');
+    var counts = actFlagCounts(units);
+    return '<div class="act-card" onclick="openDetailTO(' + idx + ')">'+
+      '<div class="top-row"><span class="act-num">' + esc(act.actNumber) + '</span><span class="date">' + esc(act.date) + '</span></div>'+
+      '<div class="client">' + esc(act.client || '—') + '</div>'+
+      '<div class="meta">' + esc(act.address || '') + (modelsText ? ' · ' + esc(modelsText) : '') + (units.length>1 ? ' ('+units.length+' ИБП)' : '') + (act.basis ? ' · ' + esc(act.basis) : '') + '</div>'+
+      '<div style="margin-top:8px;">' + flagsPillsHtml(counts) + '</div>'+
+    '</div>';
+  }).join('');
+}
+
+/* ---- Детальный просмотр ТО ---- */
+function openDetailTO(idx){
+  currentAct = allActsTO[idx];
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  renderViewModeTO();
+}
+
+function unitIdTableHtml(u){
+  return '<table class="kv-table">'+
+    row('Модель ИБП', u.model) + row('Серийный №', u.serial) +
+    row('Тип шкафа', u.cabinetType) + row('Кол-во шкафов', u.cabinetCount) +
+    row('Кол-во АКБ', u.batteryCount) + row('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
+    row('Модель АКБ', u.batteryModel) + row('Год АКБ', u.batteryYear) +
+  '</table>';
+}
+function toItemHtml(u, item){
+  var to = getTo(u);
+  if(item.t==='status'){
+    var s=statusSlot(u,item.key);
+    return '<div class="mstatus"><span class="dot ' + dotClass(s.value) + '"></span><span class="nm">' + esc(item.label) + '</span>'+
+      '<span class="wd">' + statusWord(s.value) + '</span>' + (s.comment ? '<span class="cm">' + esc(s.comment) + '</span>' : '') + '</div>';
+  }
+  if(item.t==='num'){ var v=to[item.key]; var shown=(v===''||v===undefined||v===null)?'—':esc(v)+(item.unit?' '+item.unit:''); return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+shown+'</span></div>'; }
+  if(item.t==='text'){ var tv=to[item.key]; return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+(tv?esc(tv):'—')+'</span></div>'; }
+  if(item.t==='check'){ var on=!!to[item.key]; return '<div class="mcheck '+(on?'on':'off')+'"><span class="mk">'+(on?'✓':'—')+'</span><span>'+esc(item.label)+'</span></div>'; }
+  if(item.t==='phase'){
+    var arr=to[item.key]||['','',''];
+    var any=arr.some(function(x){return x!==''&&x!==undefined&&x!==null;});
+    var vals=any?('<span class="phase-vals">'+['L1','L2','L3'].map(function(ph,i){return '<span>'+ph+' <b>'+esc(arr[i]||'—')+'</b></span>';}).join('')+(item.unit?' '+item.unit:'')+'</span>'):'—';
+    return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+vals+'</span></div>';
+  }
+  if(item.t==='cells'){ return toCellsHtml(to[item.key]||[]); }
+  return '';
+}
+function toCellsHtml(arr){
+  if(!arr.length) return '<div class="mrow"><span class="mkey">Элементы АКБ</span><span class="mval">не заполнено</span></div>';
+  var res=weakCellFlags(arr);
+  var rows=arr.map(function(c,i){ var cls=res.flags[i]?' class="cell-weak"':''; return '<tr'+cls+'><td>'+(i+1)+'</td><td>'+esc(c.u||'—')+'</td><td>'+esc(c.r||'—')+'</td></tr>'; }).join('');
+  var weak=[]; res.flags.forEach(function(w,i){ if(w) weak.push(i+1); });
+  var stats='<div class="cells-stats">Элементов: '+arr.length+(res.meanU!==null?' · средн. U '+res.meanU.toFixed(2)+' В':'')+(res.meanR!==null?' · средн. R '+res.meanR.toFixed(1)+' мОм':'')+(weak.length?' · <span class="weak">слабые: №'+weak.join(', №')+'</span>':' · <span style="color:#2E9E4C">слабых нет</span>')+'</div>';
+  return '<div style="margin:6px 0;"><div class="mkey" style="margin-bottom:4px;">Элементы АКБ (U / внутр. сопротивление)</div>'+
+    '<table class="cells-table"><thead><tr><th>№</th><th>U, В</th><th>R, мОм</th></tr></thead><tbody>'+rows+'</tbody></table>'+stats+'</div>';
+}
+function toUnitSectionsHtml(u){
+  var sections=TO_SECTIONS.map(function(sec){ var items=sec.items.map(function(it){ return toItemHtml(u,it); }).join(''); return '<div class="sec-title">'+sec.n+'. '+esc(sec.title)+'</div>'+items; }).join('');
+  var d=statusSlot(u,'defect');
+  var defect='<div class="sec-title">Выявленные неисправности</div><div class="mstatus"><span class="dot '+dotClass(d.value)+'"></span><span class="nm">Требуется замена / ремонт узлов</span><span class="wd">'+statusWord(d.value)+'</span>'+(d.comment?'<span class="cm">'+esc(d.comment)+'</span>':'')+'</div>';
+  return sections+defect;
+}
+function renderViewModeTO(){
+  var act=currentAct;
+  var units=safeParse(act.unitsJson, []);
+  var unitsHtml=units.length ? units.map(function(u,i){
+    var c=unitFlagCounts(u);
+    var badges='';
+    if(c.reds) badges+='<span style="color:#D9362B">🔴 '+c.reds+'</span>';
+    if(c.yellows) badges+='<span style="color:#9a7400">🟡 '+c.yellows+'</span>';
+    if(!c.reds && !c.yellows) badges+='<span style="color:#2E9E4C">🟢</span>';
+    if(c.weak) badges+='<span style="color:var(--navy)">АКБ '+c.weak+'</span>';
+    var bodyId='unitBody_'+i;
+    return '<div class="unit-block"><div class="unit-block-header" onclick="toggleUnitBlock(\''+bodyId+'\')">'+
+      '<span class="arrow" id="'+bodyId+'_arrow">▸</span>'+
+      '<span>ИБП #'+(i+1)+(u.model?' — '+esc(u.model):'')+(u.serial?' ('+esc(u.serial)+')':'')+'</span>'+
+      '<span class="badges">'+badges+'</span></div>'+
+      '<div class="unit-block-body collapsed" id="'+bodyId+'">'+unitIdTableHtml(u)+
+        (u.serial ? '<button class="edit-btn" style="margin:4px 0 10px;background:#3CB043;" onclick="makeLabel('+i+')">🏷 QR-наклейка на ИБП</button>' : '<div class="no-photos" style="margin-bottom:8px;">Серийный № не указан — QR-наклейку не создать</div>')+
+        toUnitSectionsHtml(u)+
+        '<div class="section-title" style="margin-top:12px;">Фото по этому ИБП</div><div id="unitPhotos_'+i+'"><span class="no-photos">Загрузка фото...</span></div>'+
+      '</div></div>';
+  }).join('') : '<div class="no-photos">ИБП не указаны</div>';
+
+  document.getElementById('detailContent').innerHTML =
+    '<div class="detail-card">'+
+      '<div class="detail-header-row"><h2>'+esc(act.actNumber)+'</h2>'+
+        '<div><label style="font-size:13px;margin-right:10px;user-select:none;cursor:pointer;"><input type="checkbox" id="printPhotos" checked style="vertical-align:middle;margin-right:4px;"> Фото в акте</label>'+
+        '<button class="edit-btn" onclick="printActTO()">🖨 Печать / PDF</button></div></div>'+
+      '<div class="detail-sub">'+esc(act.date)+' · инженер '+esc(act.engineer||'—')+'</div>'+
+      '<table class="kv-table">'+row('Заказчик',act.client)+row('Контактное лицо',act.contact)+row('Адрес объекта',act.address)+row('Основание (договор)',act.basis)+'</table>'+
+      '<div class="section-title">ИБП — чек-лист ТО</div>'+unitsHtml+
+      '<div class="section-title">Заключение и рекомендации</div><div class="conclusion-box">'+esc(act.conclusion||'не заполнено')+'</div>'+
+      '<div class="section-title">Прочие фото (помещение и т.п.)</div><div id="photoGroups"><span class="no-photos">Загрузка фото...</span></div>'+
+      (act.folderUrl?'<a class="drive-link" href="'+act.folderUrl+'" target="_blank">📁 Открыть папку в Drive</a>':'')+
+    '</div>';
+
+  loadPhotos(act.folderUrl); // общая функция диаг-журнала
+}
+
+/* ---- Печать ТО (чистый A4) ---- */
+function renderPrintTemplateTO(act, photoGroups, withPhotos){
+  photoGroups = photoGroups || [];
+  if(withPhotos === undefined) withPhotos = true;
+  var units = safeParse(act.unitsJson, []);
+
+  var unitsHtml = units.length ? units.map(function(u, i){
+    var unitPhotos = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === (i+1); }) : [];
+    return '<div class="punit">'+
+      '<div class="punit-title">ИБП #' + (i+1) + (u.model ? ' — ' + esc(u.model) : '') + (u.serial ? ' (S/N ' + esc(u.serial) + ')' : '') + '</div>'+
+      '<div class="punit-body"><div class="punit-info">'+
+        pRow('Серийный №', u.serial) + pRow('Тип шкафа', u.cabinetType) +
+        pRow('Кол-во шкафов', u.cabinetCount) + pRow('Кол-во АКБ', u.batteryCount) +
+        pRow('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
+        pRow('Модель АКБ', u.batteryModel) + pRow('Год АКБ', u.batteryYear) +
+      '</div></div>'+
+      '<div style="padding:2px 12px 10px;">' + toUnitSectionsHtml(u) + '</div>'+
+      (unitPhotos.length ? '<div style="padding:8px 10px;border-top:1px solid #eee;">' + pPhotoGroupsHtml(unitPhotos) + '</div>' : '')+
+    '</div>';
+  }).join('') : '<div class="pmini">ИБП не указаны</div>';
+
+  var otherGroups = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === null; }) : [];
+  var photosHtml = otherGroups.length ? pPhotoGroupsHtml(otherGroups) : '<div class="pmini">Прочих фото нет</div>';
+
+  document.getElementById('printTemplate').innerHTML = ''+
+    '<div class="print-fixed-footer">'+
+      '<div class="partner-band">' + PARTNER_B64.map(function(p){ return '<img src="data:image/png;base64,' + p + '">'; }).join('') + '</div>'+
+      '<div class="pdoc-footer"></div>'+
+    '</div>'+
+    '<table class="ptable"><thead><tr><td></td></tr></thead>'+
+      '<tfoot><tr><td><div class="pfoot-spacer"></div></td></tr></tfoot>'+
+      '<tbody><tr><td>'+
+      '<div class="pdoc-header">'+
+        '<div class="pheader-top">'+
+          '<div class="plogo-row"><img src="data:image/png;base64,' + LOGO_B64 + '"></div>'+
+          '<div class="pdocno"><div class="num">АКТ ТО № ' + esc(act.actNumber) + '</div><div class="date">' + esc(act.date) + '</div></div>'+
+        '</div>'+
+        '<div class="phero">'+
+          '<div>'+
+            '<div class="ptitle">Акт технического<span>обслуживания ИБП</span></div>'+
+            '<div class="paccent"></div>'+
+            '<div class="pintro">ТОО «ERNES INDUSTRIAL POWER SYSTEMS» по итогам планового технического обслуживания оборудования сообщает нижеследующее.</div>'+
+          '</div>'+
+          '<img class="phero-img" src="data:image/png;base64,' + UPS_MAIN_B64 + '">'+
+        '</div>'+
+      '</div>'+
+      '<div class="pcontent">'+
+        '<div class="psection">'+
+          '<div class="psection-head">Информация об объекте</div>'+
+          '<div class="pinfo-grid">'+
+            pInfoItem('Заказчик', act.client) + pInfoItem('Контактное лицо', act.contact) +
+            pInfoItem('Адрес объекта', act.address) + pInfoItem('Основание (договор)', act.basis) +
+            pInfoItem('Инженер', act.engineer) + pInfoItem('ИБП обслужено', units.length + ' шт.') +
+          '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Выполненные работы по техническому обслуживанию</div>'+
+          unitsHtml+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Заключение и рекомендации</div>'+
+          '<div class="pconclusion">' + esc(act.conclusion || 'не заполнено') + '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Фотофиксация</div>'+
+          photosHtml+
+        '</div>'+
+        '<div class="psection psign-block">'+
+          '<div class="psign-item">Работы выполнил (инженер ERNES)<div class="psign-line"></div><div class="psign-caption"><span>Подпись</span><span>' + esc(act.engineer || '') + '</span></div></div>'+
+          '<div class="psign-item">Работы принял (заказчик)<div class="psign-line"></div><div class="psign-caption"><span>Подпись</span><span>ФИО</span></div></div>'+
+        '</div>'+
+      '</div>'+
+      '</td></tr></tbody></table>'+
+    '<div class="pfinal">'+
+      '<img class="pfinal-static" src="data:image/png;base64,' + FINAL_PAGE_B64 + '">'+
+    '</div>';
+}
+function printActTO(){
+  var act=currentAct;
+  var cb=document.getElementById('printPhotos');
+  var withPhotos=cb?cb.checked:true;
+  var folderId=extractFolderId(act.folderUrl);
+  var tpl=document.getElementById('printTemplate');
+  function go(groups,flag){ renderPrintTemplateTO(act,groups,flag); if(flag) waitImagesThenPrint(tpl,8000); else setTimeout(function(){ window.print(); },100); }
+  if(!withPhotos || !folderId){ go([],false); return; }
+  if(viewPhotoGroups && viewPhotoGroups.length){ go(viewPhotoGroups,true); return; }
+  go([],false);
+  callGet('getPhotos',{folderId:folderId}).then(function(groups){ viewPhotoGroups=groups; go(groups,true); }).catch(function(){ go([],false); });
+}
+
+/* ============================================================
+   Контроллер вкладок
+   ============================================================ */
+function switchTab(t){
+  if(currentType === t){ return; }
+  currentType = t;
+  document.getElementById('tabDiag').classList.toggle('tab-active', t==='diag');
+  document.getElementById('tabTo').classList.toggle('tab-active', t==='to');
+  document.getElementById('journalTitle').textContent = (t==='to') ? '🔧 Журнал ТО' : '⚡ Журнал диагностики';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchInput').placeholder = (t==='to')
+    ? 'Поиск по заказчику, модели, серийнику, № акта, договору...'
+    : 'Поиск по заказчику, модели, № акта...';
+  showList();
+  if(t==='to'){
+    if(allActsTO.length){ renderListTO(allActsTO); } else { loadMaintenance(); }
+  } else {
+    if(allActs.length){ renderList(allActs); } else { loadActs(); }
+  }
+}
+
+function reloadCurrent(){
+  if(currentType === 'to') loadMaintenance(); else loadActs();
+}
+
+/* ===================== QR-наклейка на ИБП ===================== */
+function normSerial(s){ return String(s||'').trim().toUpperCase().replace(/\s+/g,''); }
+
+function cardUrlFor(serial){
+  // ссылка на публичную карточку card.html рядом с этим журналом
+  var base = new URL('card.html', location.href).href;
+  return base + '?sn=' + encodeURIComponent(normSerial(serial));
+}
+
+function qrDataUrl(text, cell){
+  if(typeof qrcode === 'undefined') return null;
+  var qr = qrcode(0, 'M');      // авто-версия, коррекция M
+  qr.addData(text);
+  qr.make();
+  return qr.createDataURL(cell || 6, 8);
+}
+
+var _labelCtx = null; // {serial, model, url, img}
+
+function makeLabel(unitIdx){
+  var units = safeParse(currentAct.unitsJson, []);
+  var u = units[unitIdx];
+  if(!u || !u.serial){ alert('У этого ИБП не указан серийный № — QR-наклейку не создать.'); return; }
+  var serial = normSerial(u.serial);
+  var url = cardUrlFor(serial);
+  var img = qrDataUrl(url, 6);
+  if(!img){ alert('QR-модуль не загрузился (нет интернета?). Откройте журнал онлайн и повторите.'); return; }
+  _labelCtx = { serial: serial, model: u.model || 'ИБП', url: url, img: img };
+
+  var logo = (typeof LOGO_B64 !== 'undefined') ? '<img class="lc-logo" src="data:image/png;base64,'+LOGO_B64+'">' : '';
+  document.getElementById('labelPreview').innerHTML =
+    '<div class="label-card">'+logo+
+      '<div class="lc-model">'+esc(_labelCtx.model)+'</div>'+
+      '<div class="lc-serial">S/N '+esc(serial)+'</div>'+
+      '<div class="lc-qr"><img src="'+img+'"></div>'+
+      '<div class="lc-cap">Сканируйте — история обслуживания ИБП</div>'+
+    '</div>';
+  document.getElementById('labelOverlay').classList.add('show');
+}
+
+function closeLabel(){ document.getElementById('labelOverlay').classList.remove('show'); }
+
+function printLabel(){
+  if(!_labelCtx) return;
+  var logo = (typeof LOGO_B64 !== 'undefined') ? '<img class="pl-logo" src="data:image/png;base64,'+LOGO_B64+'">' : '';
+  document.getElementById('printTemplate').innerHTML =
+    '<div class="print-label"><div class="pl-card">'+logo+
+      '<div class="pl-model">'+esc(_labelCtx.model)+'</div>'+
+      '<div class="pl-serial">S/N '+esc(_labelCtx.serial)+'</div>'+
+      '<img class="pl-qr" src="'+_labelCtx.img+'">'+
+      '<div class="pl-cap">Отсканируйте QR-код камерой телефона, чтобы увидеть полную историю технического обслуживания этого ИБП.<br>ТОО «ERNES INDUSTRIAL POWER SYSTEMS» · ernes.kz</div>'+
+    '</div></div>';
+  setTimeout(function(){ window.print(); }, 100);
+}
+</script>
+</body>
+</html>
+
   }
   *{box-sizing:border-box;}
   body{
