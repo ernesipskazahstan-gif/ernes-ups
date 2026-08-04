@@ -271,12 +271,28 @@ function render(data){
   toggleVisit('visit_0');
 }
 
+function fetchJson(url, attempt){
+  attempt = attempt || 0;
+  var MAX = 3;
+  return fetch(url).then(function(r){ return r.text(); }).then(function(text){
+    var t = (text || '').trim();
+    try { return JSON.parse(t); }
+    catch(e){
+      var looksHtml = t.charAt(0) === '<' || t.indexOf('<!DOCTYPE') !== -1 || t.indexOf('<html') !== -1;
+      if(looksHtml && attempt < MAX){
+        return new Promise(function(res){ setTimeout(res, 600*(attempt+1)); }).then(function(){ return fetchJson(url, attempt+1); });
+      }
+      throw new Error('сервер вернул не JSON');
+    }
+  });
+}
+
 function load(){
   var sn=getParam('sn');
   var c=document.getElementById('content');
   if(!sn){ c.innerHTML='<div class="msg">Не указан серийный номер ИБП в ссылке.</div>'; return; }
   var url=APPS_SCRIPT_URL+'?action=getUpsCard&sn='+encodeURIComponent(sn);
-  fetch(url).then(function(r){ return r.json(); }).then(function(res){
+  fetchJson(url).then(function(res){
     if(!res.ok) throw new Error(res.error||'Ошибка сервера');
     render(res.data);
   }).catch(function(err){
