@@ -343,7 +343,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">journal: + общая сводка (donut) + safeURL</div>
+<div class="build-version">journal: + устойчивая загрузка (retry non-JSON)</div>
 
 
 <script>
@@ -375,15 +375,35 @@ var STATUS_ITEMS = [
 function callGet(action, params){
   var url = APPS_SCRIPT_URL + '?action=' + action;
   Object.keys(params || {}).forEach(function(k){ url += '&' + k + '=' + encodeURIComponent(params[k]); });
-  return fetch(url).then(function(r){ return r.json(); }).then(unwrap);
+  return fetchJson(url, { method: 'GET' }).then(unwrap);
 }
 function callPost(action, data){
   var body = Object.assign({ action: action }, data || {});
-  return fetch(APPS_SCRIPT_URL, {
+  return fetchJson(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(body)
-  }).then(function(r){ return r.json(); }).then(unwrap);
+  }).then(unwrap);
+}
+// Устойчивый JSON-запрос: если Apps Script вернул HTML (редирект/временная
+// ошибка на «холодном» запросе) вместо JSON — тихо повторяем несколько раз.
+// Так пропадает «Unexpected token '<'», которая раньше срывала загрузку.
+function fetchJson(url, opts, attempt){
+  attempt = attempt || 0;
+  var MAX = 3;
+  return fetch(url, opts).then(function(r){ return r.text(); }).then(function(text){
+    var t = (text || '').trim();
+    try {
+      return JSON.parse(t);
+    } catch(e){
+      var looksHtml = t.charAt(0) === '<' || t.indexOf('<!DOCTYPE') !== -1 || t.indexOf('<html') !== -1;
+      if(looksHtml && attempt < MAX){
+        return new Promise(function(res){ setTimeout(res, 600 * (attempt + 1)); })
+          .then(function(){ return fetchJson(url, opts, attempt + 1); });
+      }
+      throw new Error('сервер вернул не JSON (попробуйте обновить)');
+    }
+  });
 }
 function unwrap(res){
   if(!res.ok) throw new Error(res.error || 'Ошибка сервера');
