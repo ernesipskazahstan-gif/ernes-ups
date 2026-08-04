@@ -256,6 +256,13 @@
   .to-print .p-sign .ln{border-bottom:1px solid #999; height:26px; margin-top:12px;} .to-print .p-sign .cap{display:flex; justify-content:space-between; font-size:9px; color:#888; margin-top:2px;}
   .to-print .p-photos .grid{display:grid; grid-template-columns:repeat(5,1fr); gap:5px;} .to-print .p-photos img{width:100%; height:70px; object-fit:cover; border-radius:5px; border:1px solid #ddd;} .to-print .p-photos .name{font-size:11px; font-weight:700; color:var(--navy); margin:8px 0 4px;}
   @media print{ .to-print .sec-title{border-top:none; margin:8px 0 4px; font-size:11px;} .to-print .mrow,.to-print .mstatus,.to-print .mcheck{padding:2px 0; font-size:11px;} }
+  @media print{
+    #printTemplate .sec-title{font-size:10px; margin:6px 0 3px; padding-top:5px; border-top:1px dashed #ddd;}
+    #printTemplate .mrow, #printTemplate .mstatus, #printTemplate .mcheck{font-size:10px; padding:2px 0;}
+    #printTemplate .mstatus .cm{font-size:9px;}
+    #printTemplate .cells-table{font-size:9px;}
+    #printTemplate .punit{page-break-inside:avoid;}
+  }
 
   /* ===== QR-наклейка ===== */
   .label-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:300; align-items:center; justify-content:center; padding:16px;}
@@ -329,7 +336,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">journal + QR-карточка ИБП</div>
+<div class="build-version">journal: фото у пунктов + фирменная печать ТО</div>
 
 
 <script>
@@ -1188,10 +1195,7 @@ var TO_SECTIONS = [
     {t:'phase', key:'s8_iout', label:'Выходной ток',        unit:'А'},
     {t:'num',   key:'s8_fout', label:'Частота выходного напряжения', unit:'Гц'}
   ]},
-  {n:9, title:'Сверка показаний', items:[
-    {t:'status', key:'s9', label:'Расчёт vs индикация монитора ИБП / система мониторинга'}
-  ]},
-  {n:10, title:'Аккумуляторные батареи', items:[
+  {n:9, title:'Аккумуляторные батареи', items:[
     {t:'status', key:'s10_mount',     label:'Крепление компонентов внутри батарейных модулей'},
     {t:'num',    key:'s10_moduleV',   label:'Напряжение на батарейном модуле', unit:'В'},
     {t:'cells',  key:'s10_cells',     label:'Элементы АКБ: напряжение и внутр. сопротивление'},
@@ -1199,13 +1203,13 @@ var TO_SECTIONS = [
     {t:'check',  key:'s10_adjust',    label:'Регулировка цепей измерения напряжения АКБ'},
     {t:'num',    key:'s10_capacity',  label:'Остаточная ёмкость АКБ', unit:'%'}
   ]},
-  {n:11, title:'Выпрямитель и зарядное устройство', items:[
+  {n:10, title:'Выпрямитель и зарядное устройство', items:[
     {t:'check', key:'s11_nominal',  label:'Установка номинального напряжения основной сети'},
     {t:'check', key:'s11_adjustUF', label:'Регулировка цепей измерения U/F основной сети'},
     {t:'num',   key:'s11_chargeA',  label:'Ток заряда АКБ', unit:'А'},
     {t:'num',   key:'s11_floatV',   label:'Напряжение поддерживающего заряда', unit:'В'}
   ]},
-  {n:12, title:'Контрольный тест', items:[
+  {n:11, title:'Контрольный тест', items:[
     {t:'status', key:'s12', label:'Реакция ИБП на пропадание входного напряжения'}
   ]}
 ];
@@ -1360,27 +1364,81 @@ function renderViewModeTO(){
 }
 
 /* ---- Печать ТО (чистый A4) ---- */
-function toPInfo(label,value){ return '<div class="it"><div class="l">'+label+'</div><div class="v">'+esc(value||'—')+'</div></div>'; }
 function renderPrintTemplateTO(act, photoGroups, withPhotos){
-  photoGroups=photoGroups||[];
-  var units=safeParse(act.unitsJson, []);
-  var unitsHtml=units.map(function(u,i){
-    return '<div class="p-unit"><div class="p-unit-title">ИБП #'+(i+1)+(u.model?' — '+esc(u.model):'')+(u.serial?' ('+esc(u.serial)+')':'')+'</div>'+
-      '<div class="p-unit-body">'+unitIdTableHtml(u)+toUnitSectionsHtml(u)+'</div></div>';
-  }).join('');
-  var photosHtml='';
-  if(withPhotos && photoGroups.length){ photosHtml='<div class="p-photos"><div class="p-title" style="font-size:13px;margin-top:10px;">Фотоматериалы</div>'+pPhotoGroupsHtml(photoGroups)+'</div>'; }
-  document.getElementById('printTemplate').innerHTML='<div class="to-print">'+
-    '<div class="p-head"><div class="p-brand">ERNES <span class="co">INDUSTRIAL POWER SYSTEMS</span></div>'+
-      '<div class="p-docno"><div class="num">Акт ТО '+esc(act.actNumber)+'</div><div>'+esc(act.date)+'</div></div></div>'+
-    '<div class="p-title">Акт технического обслуживания ИБП</div>'+
-    '<div class="p-info">'+toPInfo('Заказчик',act.client)+toPInfo('Основание (договор)',act.basis)+toPInfo('Адрес объекта',act.address)+toPInfo('Контактное лицо',act.contact)+toPInfo('Инженер',act.engineer)+toPInfo('ИБП обслужено',units.length+' шт.')+'</div>'+
-    unitsHtml+
-    '<div class="p-title" style="font-size:13px;">Заключение и рекомендации</div><div class="p-conc">'+esc(act.conclusion||'не заполнено')+'</div>'+
-    photosHtml+
-    '<div class="p-sign"><div><div>Работы выполнил (инженер ERNES):</div><div class="ln"></div><div class="cap"><span>подпись</span><span>'+esc(act.engineer||'')+'</span></div></div>'+
-      '<div><div>Работы принял (представитель заказчика):</div><div class="ln"></div><div class="cap"><span>подпись</span><span>'+esc(act.contact||'')+'</span></div></div></div>'+
-  '</div>';
+  photoGroups = photoGroups || [];
+  if(withPhotos === undefined) withPhotos = true;
+  var units = safeParse(act.unitsJson, []);
+
+  var unitsHtml = units.length ? units.map(function(u, i){
+    var unitPhotos = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === (i+1); }) : [];
+    return '<div class="punit">'+
+      '<div class="punit-title">ИБП #' + (i+1) + (u.model ? ' — ' + esc(u.model) : '') + (u.serial ? ' (S/N ' + esc(u.serial) + ')' : '') + '</div>'+
+      '<div class="punit-body"><div class="punit-info">'+
+        pRow('Серийный №', u.serial) + pRow('Тип шкафа', u.cabinetType) +
+        pRow('Кол-во шкафов', u.cabinetCount) + pRow('Кол-во АКБ', u.batteryCount) +
+        pRow('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
+        pRow('Модель АКБ', u.batteryModel) + pRow('Год АКБ', u.batteryYear) +
+      '</div></div>'+
+      '<div style="padding:2px 12px 10px;">' + toUnitSectionsHtml(u) + '</div>'+
+      (unitPhotos.length ? '<div style="padding:8px 10px;border-top:1px solid #eee;">' + pPhotoGroupsHtml(unitPhotos) + '</div>' : '')+
+    '</div>';
+  }).join('') : '<div class="pmini">ИБП не указаны</div>';
+
+  var otherGroups = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === null; }) : [];
+  var photosHtml = otherGroups.length ? pPhotoGroupsHtml(otherGroups) : '<div class="pmini">Прочих фото нет</div>';
+
+  document.getElementById('printTemplate').innerHTML = ''+
+    '<div class="print-fixed-footer">'+
+      '<div class="partner-band">' + PARTNER_B64.map(function(p){ return '<img src="data:image/png;base64,' + p + '">'; }).join('') + '</div>'+
+      '<div class="pdoc-footer"></div>'+
+    '</div>'+
+    '<table class="ptable"><thead><tr><td></td></tr></thead>'+
+      '<tfoot><tr><td><div class="pfoot-spacer"></div></td></tr></tfoot>'+
+      '<tbody><tr><td>'+
+      '<div class="pdoc-header">'+
+        '<div class="pheader-top">'+
+          '<div class="plogo-row"><img src="data:image/png;base64,' + LOGO_B64 + '"></div>'+
+          '<div class="pdocno"><div class="num">АКТ ТО № ' + esc(act.actNumber) + '</div><div class="date">' + esc(act.date) + '</div></div>'+
+        '</div>'+
+        '<div class="phero">'+
+          '<div>'+
+            '<div class="ptitle">Акт технического<span>обслуживания ИБП</span></div>'+
+            '<div class="paccent"></div>'+
+            '<div class="pintro">ТОО «ERNES INDUSTRIAL POWER SYSTEMS» по итогам планового технического обслуживания оборудования сообщает нижеследующее.</div>'+
+          '</div>'+
+          '<img class="phero-img" src="data:image/png;base64,' + UPS_MAIN_B64 + '">'+
+        '</div>'+
+      '</div>'+
+      '<div class="pcontent">'+
+        '<div class="psection">'+
+          '<div class="psection-head">Информация об объекте</div>'+
+          '<div class="pinfo-grid">'+
+            pInfoItem('Заказчик', act.client) + pInfoItem('Контактное лицо', act.contact) +
+            pInfoItem('Адрес объекта', act.address) + pInfoItem('Основание (договор)', act.basis) +
+            pInfoItem('Инженер', act.engineer) + pInfoItem('ИБП обслужено', units.length + ' шт.') +
+          '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Выполненные работы по техническому обслуживанию</div>'+
+          unitsHtml+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Заключение и рекомендации</div>'+
+          '<div class="pconclusion">' + esc(act.conclusion || 'не заполнено') + '</div>'+
+        '</div>'+
+        '<div class="psection">'+
+          '<div class="psection-head">Фотофиксация</div>'+
+          photosHtml+
+        '</div>'+
+        '<div class="psection psign-block">'+
+          '<div class="psign-item">Работы выполнил (инженер ERNES)<div class="psign-line"></div><div class="psign-caption"><span>Подпись</span><span>' + esc(act.engineer || '') + '</span></div></div>'+
+          '<div class="psign-item">Работы принял (заказчик)<div class="psign-line"></div><div class="psign-caption"><span>Подпись</span><span>ФИО</span></div></div>'+
+        '</div>'+
+      '</div>'+
+      '</td></tr></tbody></table>'+
+    '<div class="pfinal">'+
+      '<img class="pfinal-static" src="data:image/png;base64,' + FINAL_PAGE_B64 + '">'+
+    '</div>';
 }
 function printActTO(){
   var act=currentAct;
