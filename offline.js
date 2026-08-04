@@ -205,7 +205,7 @@ var ErnesOffline = (function () {
       // 1) № акта + папка (только если ещё не получены)
       if (!d.sync || !d.sync.serverActNumber) {
         var client = (d.payload && d.payload.client) || (d.state && d.state.form && d.state.form.client) || '';
-        return callPost('startAct', { client: client, mode: d.mode }).then(function (r) {
+        return callPost('startAct', { client: client, mode: d.mode, localId: d.localId }).then(function (r) {
           d.sync = { serverActNumber: r.actNumber, folderId: r.folderId, folderUrl: r.folderUrl };
           return putDraft(d);
         });
