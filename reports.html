@@ -162,6 +162,13 @@
   .pcontent{padding:16px 26px 0;}
   .pcontent-nohead{padding-top:26px;}
   .psection{margin-bottom:16px;}
+  .poverview{display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center; padding:6px 0;}
+  .pov-donut{text-align:center;}
+  .pov-donut .pov-label{font-size:11px; font-weight:700; margin-top:4px;}
+  .pov-dirs{display:grid; grid-template-columns:1fr 1fr; gap:2px 22px;}
+  .pov-dir{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; padding:4px 0; border-bottom:1px solid #f0f0f0;}
+  .pov-dir-name{color:#333; font-weight:600;}
+  .pov-dot{width:12px; height:12px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.08);}
   .psection-head{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; color:#1F4E79; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #FFF4D6; padding-bottom:5px; margin-bottom:8px;}
   .pinfo-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 20px; font-size:12px;}
   .pinfo-item{padding:4px 0; border-bottom:1px solid #f0f0f0;}
@@ -336,7 +343,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">journal: фото у пунктов + фирменная печать ТО</div>
+<div class="build-version">journal: + общая сводка (donut) + safeURL</div>
 
 
 <script>
@@ -389,6 +396,12 @@ function esc(s){
 }
 function safeParse(json, fallback){
   try { var v = JSON.parse(json || 'null'); return v || fallback; } catch(e){ return fallback; }
+}
+// Пропускает только https-ссылки на Google Drive/Docs — защита от подстановки
+// javascript:/data: в href, если в поле когда-то попадёт мусор.
+function safeDriveUrl(url){
+  var s = String(url || '');
+  return /^https:\/\/(drive|docs)\.google\.com\//.test(s) ? s : '#';
 }
 
 function statusClass(statusText){
@@ -571,7 +584,7 @@ function renderViewMode(){
       '<div class="conclusion-box">' + esc(act.conclusion || 'не заполнено') + '</div>'+
       '<div class="section-title">Прочие фото (помещение, нагрузки, ДГУ)</div>'+
       '<div id="photoGroups"><span class="no-photos">Загрузка фото...</span></div>'+
-      (act.folderUrl ? '<a class="drive-link" href="' + act.folderUrl + '" target="_blank">📁 Открыть папку в Drive</a>' : '') +
+      (act.folderUrl ? '<a class="drive-link" href="' + safeDriveUrl(act.folderUrl) + '" target="_blank">📁 Открыть папку в Drive</a>' : '') +
     '</div>';
 
   loadPhotos(act.folderUrl);
@@ -1029,6 +1042,86 @@ function pPhotoGroupsHtml(groups){
   }).join('');
 }
 
+/* ===================== Общая сводка (титульный лист печати) ===================== */
+function worseOf(a, b){
+  var rank = { '':0, gray:0, green:1, yellow:2, red:3 };
+  return (rank[b] > rank[a]) ? b : a;
+}
+function scoreOf(cls){ return cls==='green'?1:cls==='yellow'?0.5:cls==='red'?0:null; }
+
+// Диагностика: направления = 6 систем (STATUS_ITEMS), вердикт = худший по всем ИБП.
+function overviewDiag(units){
+  var total=0, sum=0, dirs=[];
+  STATUS_ITEMS.forEach(function(item){
+    var worst='';
+    units.forEach(function(u){
+      var c = statusClass(u.statuses ? u.statuses[item.key] : '');
+      var sc = scoreOf(c);
+      if(sc !== null){ total++; sum += sc; worst = worseOf(worst, c); }
+    });
+    dirs.push({ name:item.title, cls:worst||'gray' });
+  });
+  return { pct: total ? Math.round(sum/total*100) : null, dirs: dirs };
+}
+
+// ТО: направления = разделы чек-листа; вердикт = худший статус в разделе,
+// а для разделов без статусов (очистка, журналы и т.п.) — по чекбоксам.
+function overviewTO(units){
+  var total=0, sum=0, dirs=[];
+  TO_SECTIONS.forEach(function(sec){
+    var worst='', chkTotal=0, chkDone=0;
+    sec.items.forEach(function(it){
+      if(it.t==='status'){
+        units.forEach(function(u){
+          var v = statusSlot(u, it.key).value;
+          var sc = scoreOf(v);
+          if(sc !== null){ total++; sum += sc; worst = worseOf(worst, v); }
+        });
+      } else if(it.t==='check'){
+        units.forEach(function(u){ chkTotal++; if(getTo(u)[it.key]) chkDone++; });
+      }
+    });
+    var cls = worst;
+    if(!cls){ cls = chkTotal ? (chkDone===chkTotal?'green':chkDone>0?'yellow':'gray') : 'gray'; }
+    dirs.push({ name: sec.n + '. ' + sec.title, cls: cls });
+  });
+  // дефект (замена/ремонт) — в общий балл
+  units.forEach(function(u){ var sc = scoreOf(statusSlot(u,'defect').value); if(sc!==null){ total++; sum+=sc; } });
+  return { pct: total ? Math.round(sum/total*100) : null, dirs: dirs };
+}
+
+function donutHtml(pct){
+  var r=48, C=2*Math.PI*r;
+  var p = (pct==null) ? 0 : pct;
+  var off = C*(1 - p/100);
+  var color = p>=90?'#2E9E4C':p>=70?'#8FBF3F':p>=50?'#E0A800':'#D9362B';
+  var label = (pct==null)?'нет данных':p>=90?'Отличное состояние':p>=70?'Хорошее состояние':p>=50?'Требует внимания':'Критическое состояние';
+  var center = (pct==null)?'—':(pct+'%');
+  return '<div class="pov-donut">'+
+    '<svg width="118" height="118" viewBox="0 0 118 118">'+
+      '<circle cx="59" cy="59" r="'+r+'" fill="none" stroke="#eee" stroke-width="12"></circle>'+
+      '<circle cx="59" cy="59" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="12" stroke-linecap="round" '+
+        'stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 59 59)"></circle>'+
+      '<text x="59" y="59" text-anchor="middle" dominant-baseline="central" font-size="28" font-weight="800" fill="#1F4E79">'+center+'</text>'+
+    '</svg>'+
+    '<div class="pov-label" style="color:'+color+'">'+label+'</div>'+
+  '</div>';
+}
+
+function overviewSectionHtml(ov){
+  var dirs = ov.dirs.map(function(d){
+    var col = d.cls==='green'?'#2E9E4C':d.cls==='yellow'?'#E0A800':d.cls==='red'?'#D9362B':'#ccc';
+    return '<div class="pov-dir"><span class="pov-dir-name">'+esc(d.name)+'</span><span class="pov-dot" style="background:'+col+'"></span></div>';
+  }).join('');
+  return '<div class="psection">'+
+    '<div class="psection-head">Общая оценка объекта</div>'+
+    '<div class="poverview">'+
+      donutHtml(ov.pct)+
+      '<div class="pov-dirs">'+dirs+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
 function renderPrintTemplate(act, photoGroups, withPhotos){
   photoGroups = photoGroups || [];
   if(withPhotos === undefined) withPhotos = true;
@@ -1104,6 +1197,7 @@ function renderPrintTemplate(act, photoGroups, withPhotos){
             pInfoItem('Инженер', act.engineer) +
           '</div>'+
         '</div>'+
+        overviewSectionHtml(overviewDiag(units))+
         '<div class="psection">'+
           '<div class="psection-head">Оборудование и состояние систем</div>'+
           unitsHtml+
@@ -1357,7 +1451,7 @@ function renderViewModeTO(){
       '<div class="section-title">ИБП — чек-лист ТО</div>'+unitsHtml+
       '<div class="section-title">Заключение и рекомендации</div><div class="conclusion-box">'+esc(act.conclusion||'не заполнено')+'</div>'+
       '<div class="section-title">Прочие фото (помещение и т.п.)</div><div id="photoGroups"><span class="no-photos">Загрузка фото...</span></div>'+
-      (act.folderUrl?'<a class="drive-link" href="'+act.folderUrl+'" target="_blank">📁 Открыть папку в Drive</a>':'')+
+      (act.folderUrl?'<a class="drive-link" href="'+safeDriveUrl(act.folderUrl)+'" target="_blank">📁 Открыть папку в Drive</a>':'')+
     '</div>';
 
   loadPhotos(act.folderUrl); // общая функция диаг-журнала
@@ -1418,6 +1512,7 @@ function renderPrintTemplateTO(act, photoGroups, withPhotos){
             pInfoItem('Инженер', act.engineer) + pInfoItem('ИБП обслужено', units.length + ' шт.') +
           '</div>'+
         '</div>'+
+        overviewSectionHtml(overviewTO(units))+
         '<div class="psection">'+
           '<div class="psection-head">Выполненные работы по техническому обслуживанию</div>'+
           unitsHtml+
