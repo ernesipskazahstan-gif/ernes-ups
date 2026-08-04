@@ -169,6 +169,16 @@
   .pov-dir{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; padding:4px 0; border-bottom:1px solid #f0f0f0;}
   .pov-dir-name{color:#333; font-weight:600;}
   .pov-dot{width:12px; height:12px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.08);}
+  .pov-cols{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:12px;}
+  .pov-block-head{font-size:10px; font-weight:800; color:#1F4E79; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
+  .pov-li{display:flex; gap:6px; align-items:flex-start; font-size:11px; padding:3px 0; line-height:1.35;}
+  .pov-li .ic{flex-shrink:0; font-weight:800; width:14px; text-align:center;}
+  .pov-li.ok .ic{color:#2E9E4C;} .pov-li.warn .ic{color:#E0A800;} .pov-li.bad .ic{color:#D9362B;}
+  .pov-more{font-size:10px; color:#888; margin-top:2px; font-style:italic;}
+  .pov-stats{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #eee;}
+  .pov-stat{text-align:center; background:#f7f9fb; border-radius:8px; padding:8px 4px;}
+  .pov-stat .v{font-size:18px; font-weight:800; color:#1F4E79;}
+  .pov-stat .l{font-size:9px; color:#777; margin-top:2px;}
   .psection-head{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; color:#1F4E79; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #FFF4D6; padding-bottom:5px; margin-bottom:8px;}
   .pinfo-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 20px; font-size:12px;}
   .pinfo-item{padding:4px 0; border-bottom:1px solid #f0f0f0;}
@@ -343,7 +353,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">journal: + устойчивая загрузка (retry non-JSON)</div>
+<div class="build-version">journal: + расширенная сводка (выводы, замечания, статистика)</div>
 
 
 <script>
@@ -1069,33 +1079,47 @@ function worseOf(a, b){
 }
 function scoreOf(cls){ return cls==='green'?1:cls==='yellow'?0.5:cls==='red'?0:null; }
 
-// Диагностика: направления = 6 систем (STATUS_ITEMS), вердикт = худший по всем ИБП.
+// Диагностика: направления = 6 систем; + замечания, статистика, выводы.
 function overviewDiag(units){
-  var total=0, sum=0, dirs=[];
+  var total=0, sum=0, dirs=[], findings=[], g=0,y=0,r=0;
   STATUS_ITEMS.forEach(function(item){
     var worst='';
-    units.forEach(function(u){
-      var c = statusClass(u.statuses ? u.statuses[item.key] : '');
+    units.forEach(function(u, i){
+      var raw = u.statuses ? u.statuses[item.key] : '';
+      var c = statusClass(raw);
       var sc = scoreOf(c);
-      if(sc !== null){ total++; sum += sc; worst = worseOf(worst, c); }
+      if(sc !== null){
+        total++; sum += sc; worst = worseOf(worst, c);
+        if(c==='green') g++; else if(c==='yellow') y++; else if(c==='red') r++;
+        if(c==='yellow' || c==='red'){
+          var cmt = statusComment(raw) || statusLabelWord(raw);
+          findings.push({ level:c, text:'ИБП #'+(i+1)+' — '+item.title+(cmt?': '+cmt:'') });
+        }
+      }
     });
     dirs.push({ name:item.title, cls:worst||'gray' });
   });
-  return { pct: total ? Math.round(sum/total*100) : null, dirs: dirs };
+  var pct = total ? Math.round(sum/total*100) : null;
+  return { pct:pct, dirs:dirs, findings:findings,
+    stats:{ units:units.length, green:g, yellow:y, red:r, checks:total },
+    conclusions: keyConclusions(pct, r, y, 'diag') };
 }
 
-// ТО: направления = разделы чек-листа; вердикт = худший статус в разделе,
-// а для разделов без статусов (очистка, журналы и т.п.) — по чекбоксам.
+// ТО: направления = разделы; + замечания (статусы/дефект/слабые АКБ), статистика, выводы.
 function overviewTO(units){
-  var total=0, sum=0, dirs=[];
+  var total=0, sum=0, dirs=[], findings=[], g=0,y=0,r=0;
   TO_SECTIONS.forEach(function(sec){
     var worst='', chkTotal=0, chkDone=0;
     sec.items.forEach(function(it){
       if(it.t==='status'){
-        units.forEach(function(u){
-          var v = statusSlot(u, it.key).value;
-          var sc = scoreOf(v);
-          if(sc !== null){ total++; sum += sc; worst = worseOf(worst, v); }
+        units.forEach(function(u, i){
+          var s = statusSlot(u, it.key);
+          var sc = scoreOf(s.value);
+          if(sc !== null){
+            total++; sum += sc; worst = worseOf(worst, s.value);
+            if(s.value==='green') g++; else if(s.value==='yellow') y++; else if(s.value==='red') r++;
+            if(s.value==='yellow' || s.value==='red') findings.push({ level:s.value, text:'ИБП #'+(i+1)+' — '+it.label+(s.comment?': '+s.comment:'') });
+          }
         });
       } else if(it.t==='check'){
         units.forEach(function(u){ chkTotal++; if(getTo(u)[it.key]) chkDone++; });
@@ -1105,9 +1129,43 @@ function overviewTO(units){
     if(!cls){ cls = chkTotal ? (chkDone===chkTotal?'green':chkDone>0?'yellow':'gray') : 'gray'; }
     dirs.push({ name: sec.n + '. ' + sec.title, cls: cls });
   });
-  // дефект (замена/ремонт) — в общий балл
-  units.forEach(function(u){ var sc = scoreOf(statusSlot(u,'defect').value); if(sc!==null){ total++; sum+=sc; } });
-  return { pct: total ? Math.round(sum/total*100) : null, dirs: dirs };
+  units.forEach(function(u, i){
+    var d = statusSlot(u,'defect');
+    var sc = scoreOf(d.value);
+    if(sc!==null){ total++; sum+=sc; if(d.value==='green')g++; else if(d.value==='yellow')y++; else if(d.value==='red')r++;
+      if(d.value==='yellow'||d.value==='red') findings.push({ level:d.value, text:'ИБП #'+(i+1)+' — требуется замена/ремонт'+(d.comment?': '+d.comment:'') }); }
+    var weak = weakCellNumbers(getTo(u).s10_cells||[]);
+    if(weak.length) findings.push({ level:'yellow', text:'ИБП #'+(i+1)+' — слабые элементы АКБ: №'+weak.join(', №') });
+  });
+  var pct = total ? Math.round(sum/total*100) : null;
+  return { pct:pct, dirs:dirs, findings:findings,
+    stats:{ units:units.length, green:g, yellow:y, red:r, checks:total },
+    conclusions: keyConclusions(pct, r, y, 'to') };
+}
+
+// Ключевые выводы — генерируются из общей оценки и наличия замечаний.
+function keyConclusions(pct, reds, yellows, mode){
+  var kc = [];
+  if(pct != null){
+    if(pct>=90) kc.push('Оборудование функционирует в штатном режиме');
+    else if(pct>=70) kc.push('Оборудование работоспособно, выявлены отдельные замечания');
+    else if(pct>=50) kc.push('Оборудование требует внимания и устранения замечаний');
+    else kc.push('Оборудование в критическом состоянии — требуется вмешательство');
+  }
+  if(reds) kc.push('Обнаружены неисправности, требующие устранения ('+reds+')');
+  else if(yellows) kc.push('Выявлены замечания, не требующие срочного вмешательства');
+  else kc.push('Критических замечаний не выявлено');
+  kc.push(mode==='to' ? 'Техническое обслуживание выполнено согласно регламенту' : 'Рекомендуется плановое техническое обслуживание');
+  return kc;
+}
+
+function countPhotos(groups){
+  var n = 0;
+  (groups||[]).forEach(function(g){
+    n += (g.photos ? g.photos.length : 0);
+    (g.subgroups||[]).forEach(function(sg){ n += (sg.photos ? sg.photos.length : 0); });
+  });
+  return n;
 }
 
 function donutHtml(pct){
@@ -1128,17 +1186,48 @@ function donutHtml(pct){
   '</div>';
 }
 
-function overviewSectionHtml(ov){
+function overviewSectionHtml(ov, photoCount){
   var dirs = ov.dirs.map(function(d){
     var col = d.cls==='green'?'#2E9E4C':d.cls==='yellow'?'#E0A800':d.cls==='red'?'#D9362B':'#ccc';
     return '<div class="pov-dir"><span class="pov-dir-name">'+esc(d.name)+'</span><span class="pov-dot" style="background:'+col+'"></span></div>';
   }).join('');
+
+  var conclHtml = ov.conclusions.map(function(t){
+    return '<div class="pov-li ok"><span class="ic">✓</span><span>'+esc(t)+'</span></div>';
+  }).join('');
+
+  var findings = ov.findings.slice().sort(function(a,b){ return (b.level==='red'?1:0)-(a.level==='red'?1:0); });
+  var shown = findings.slice(0, 8);
+  var findHtml = shown.length ? shown.map(function(f){
+    var cls = f.level==='red' ? 'bad' : 'warn';
+    return '<div class="pov-li '+cls+'"><span class="ic">⚠</span><span>'+esc(f.text)+'</span></div>';
+  }).join('') + (findings.length>8 ? '<div class="pov-more">…и ещё '+(findings.length-8)+'</div>' : '')
+    : '<div class="pov-li ok"><span class="ic">✓</span><span>Замечаний не выявлено</span></div>';
+
+  var s = ov.stats;
+  var statCells = [
+    ['ИБП', s.units],
+    ['Проверок', s.checks],
+    ['🟢 Норма', s.green],
+    ['🟡 Замечания', s.yellow],
+    ['🔴 Неисправно', s.red]
+  ];
+  if(typeof photoCount === 'number') statCells.push(['Фото', photoCount]);
+  var statsHtml = statCells.map(function(c){
+    return '<div class="pov-stat"><div class="v">'+c[1]+'</div><div class="l">'+c[0]+'</div></div>';
+  }).join('');
+
   return '<div class="psection">'+
     '<div class="psection-head">Общая оценка объекта</div>'+
     '<div class="poverview">'+
       donutHtml(ov.pct)+
       '<div class="pov-dirs">'+dirs+'</div>'+
     '</div>'+
+    '<div class="pov-cols">'+
+      '<div class="pov-block"><div class="pov-block-head">Ключевые выводы</div>'+conclHtml+'</div>'+
+      '<div class="pov-block"><div class="pov-block-head">Основные замечания</div>'+findHtml+'</div>'+
+    '</div>'+
+    '<div class="pov-stats">'+statsHtml+'</div>'+
   '</div>';
 }
 
@@ -1217,7 +1306,7 @@ function renderPrintTemplate(act, photoGroups, withPhotos){
             pInfoItem('Инженер', act.engineer) +
           '</div>'+
         '</div>'+
-        overviewSectionHtml(overviewDiag(units))+
+        overviewSectionHtml(overviewDiag(units), withPhotos ? countPhotos(photoGroups) : undefined)+
         '<div class="psection">'+
           '<div class="psection-head">Оборудование и состояние систем</div>'+
           unitsHtml+
@@ -1532,7 +1621,7 @@ function renderPrintTemplateTO(act, photoGroups, withPhotos){
             pInfoItem('Инженер', act.engineer) + pInfoItem('ИБП обслужено', units.length + ' шт.') +
           '</div>'+
         '</div>'+
-        overviewSectionHtml(overviewTO(units))+
+        overviewSectionHtml(overviewTO(units), withPhotos ? countPhotos(photoGroups) : undefined)+
         '<div class="psection">'+
           '<div class="psection-head">Выполненные работы по техническому обслуживанию</div>'+
           unitsHtml+
