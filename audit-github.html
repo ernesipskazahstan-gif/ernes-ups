@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ERNES — Диагностика / ТО ИБП</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F4E79">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="offline.js"></script>
+<style>
+  :root{
+    --navy:#1F4E79;
+    --navy-dark:#163a5a;
+    --amber:#F2B705;
+    --cream:#FFF4D6;
+    --gray-bg:#F2F2F2;
+    --green:#2E9E4C;
+    --yellow:#E0A800;
+    --red:#D9362B;
+    --text:#222;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:var(--gray-bg); color:var(--text);
+  }
+  header{
+    background:var(--navy); color:#fff; padding:14px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:10;
+  }
+  header .title{font-weight:700; font-size:16px;}
+  header .act-num{font-size:12px; opacity:.85;}
+  .progress{height:4px; background:rgba(255,255,255,.25);}
+  .progress-bar{height:100%; background:var(--amber); transition:width .25s;}
+
+  .wrap{max-width:520px; margin:0 auto; padding:16px 16px 96px;}
+  .step{display:none;}
+  .step.active{display:block; animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  .card{
+    background:#fff; border-radius:12px; padding:16px; margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  .card h3{margin:0 0 12px; color:var(--navy); font-size:15px; border-bottom:2px solid var(--amber); padding-bottom:6px;}
+  .card .hint-top{font-size:12px; color:#888; margin:-8px 0 12px;}
+
+  label{display:block; font-size:13px; color:#555; margin:10px 0 4px; font-weight:600;}
+  input[type=text], input[type=number], select, textarea{
+    width:100%; padding:10px 12px; border:1px solid #ccc; border-radius:8px;
+    font-size:15px; font-family:inherit; background:#fff;
+  }
+  textarea{resize:vertical; min-height:70px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  /* Переключатель режима */
+  .mode-switch{display:flex; gap:8px; margin-bottom:14px;}
+  .mode-btn{
+    flex:1; padding:12px 8px; border-radius:10px; border:2px solid #ddd; background:#fff;
+    color:#555; font-weight:700; font-size:13px; cursor:pointer; text-align:center;
+  }
+  .mode-btn.mode-sel{background:var(--navy); color:#fff; border-color:var(--navy);}
+
+  .sub-card{
+    border:1px solid #e3e3e3; border-radius:10px; padding:12px; margin-bottom:12px; position:relative;
+  }
+  .sub-card .sub-title{font-weight:700; font-size:13px; color:var(--navy); margin-bottom:8px;}
+  .remove-btn{
+    position:absolute; top:10px; right:10px; background:none; border:none; color:#c33;
+    font-size:13px; cursor:pointer; padding:2px 6px; z-index:2;
+  }
+  .add-btn{
+    width:100%; padding:12px; border-radius:10px; border:2px dashed var(--navy); background:var(--cream);
+    color:var(--navy); font-weight:600; font-size:14px; cursor:pointer; margin-top:4px;
+  }
+
+  .unit-header{
+    cursor:pointer; font-weight:700; font-size:14px; color:var(--navy);
+    padding:4px 26px 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;
+    display:flex; align-items:center; gap:8px;
+  }
+  .collapse-arrow{display:inline-block; width:12px; flex-shrink:0;}
+  .unit-badges{display:inline-flex; gap:3px; margin-left:auto; margin-right:6px;}
+  .unit-badges .mini-dot{width:9px; height:9px; border-radius:50%; border:1px solid rgba(0,0,0,.1);}
+
+  .inline-row{display:flex; gap:8px; align-items:flex-end;}
+  .inline-row > div{flex:1;}
+  .scan-btn{
+    flex-shrink:0; height:42px; padding:0 12px; border-radius:8px; border:none;
+    background:var(--navy); color:#fff; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .scan-btn.busy{background:#888;}
+
+  .toggle-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
+  .toggle-row input[type=checkbox]{width:20px; height:20px; flex-shrink:0;}
+  .toggle-row label{margin:0; font-size:14px;}
+
+  .status-section-title{
+    color:var(--navy); font-size:13px; font-weight:700; margin:16px 0 8px;
+    text-transform:uppercase; letter-spacing:.03em; border-top:1px dashed #ddd; padding-top:12px;
+  }
+
+  .status-item{border:1px solid #e3e3e3; border-radius:10px; padding:12px; margin-bottom:10px;}
+  .status-item .item-title{font-weight:600; font-size:14px; margin-bottom:8px;}
+  .status-pick{display:flex; gap:8px; margin-bottom:8px;}
+  .status-pick button{
+    flex:1; padding:9px 4px; border-radius:8px; border:2px solid #ddd; background:#fff;
+    font-size:13px; cursor:pointer;
+  }
+  .status-pick button.sel-green{background:var(--green); color:#fff; border-color:var(--green);}
+  .status-pick button.sel-yellow{background:var(--yellow); color:#fff; border-color:var(--yellow);}
+  .status-pick button.sel-red{background:var(--red); color:#fff; border-color:var(--red);}
+
+  /* ТО: числовые поля, фазы, сетка АКБ */
+  .to-field{margin-bottom:10px;}
+  .phase-row{display:flex; gap:8px;}
+  .phase-cell{flex:1; text-align:center;}
+  .phase-cell span{display:block; font-size:11px; color:#888; font-weight:700; margin-bottom:2px;}
+  .to-cells{margin-bottom:10px;}
+  .cell-row{
+    display:flex; align-items:center; gap:8px; margin-bottom:6px;
+    padding:4px 6px; border-radius:8px; border:1px solid #eee;
+  }
+  .cell-row .cell-no{width:34px; flex-shrink:0; font-weight:700; color:var(--navy); font-size:13px; text-align:center;}
+  .cell-row input{padding:8px 10px;}
+  .cell-row.cell-weak{background:#fdecea; border-color:var(--red);}
+  .cell-row.cell-weak .cell-no{color:var(--red);}
+  .cell-legend{font-size:11px; color:#888; margin:4px 0 8px;}
+
+  .mic-row{display:flex; gap:8px; align-items:flex-start;}
+  .mic-row textarea{flex:1;}
+  .mic-btn{
+    flex-shrink:0; width:42px; height:42px; border-radius:50%; border:none;
+    background:var(--navy); color:#fff; font-size:18px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mic-btn.rec{background:var(--red); animation:pulse 1s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,54,43,.5);} 70%{box-shadow:0 0 0 10px rgba(217,54,43,0);} 100%{box-shadow:0 0 0 0 rgba(217,54,43,0);}}
+
+  .photo-btn{
+    margin-top:8px; display:inline-flex; align-items:center; gap:6px;
+    background:var(--cream); border:1px dashed var(--navy); color:var(--navy);
+    padding:7px 12px; border-radius:8px; font-size:13px; cursor:pointer;
+  }
+  .thumbs{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
+  .thumbs img{width:56px; height:56px; object-fit:cover; border-radius:6px; border:1px solid #ccc;}
+
+  .conclusion-box{position:relative;}
+  .conclusion-box textarea{min-height:160px;}
+  .big-mic{
+    width:100%; margin-top:10px; padding:14px; border-radius:10px; border:none;
+    background:var(--navy); color:#fff; font-size:15px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .big-mic.rec{background:var(--red);}
+
+  .footer-nav{
+    position:fixed; bottom:0; left:0; right:0; background:#fff;
+    border-top:1px solid #ddd; padding:10px 16px; display:flex; gap:10px;
+    max-width:520px; margin:0 auto;
+  }
+  .footer-nav button{
+    flex:1; padding:14px; border-radius:10px; border:none; font-size:15px; font-weight:600; cursor:pointer;
+  }
+  .btn-back{background:#eee; color:#333;}
+  .btn-next{background:var(--navy); color:#fff;}
+  .btn-submit{background:var(--amber); color:#1a1a1a;}
+
+  .hint{font-size:12px; color:#888; margin-top:2px;}
+  .summary-row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee; font-size:13px;}
+  .summary-row b{color:var(--navy);}
+  .success-screen{text-align:center; padding:40px 20px;}
+  .success-screen .act-big{font-size:28px; font-weight:700; color:var(--navy); margin:10px 0;}
+  .spinner{display:none; text-align:center; padding:30px;}
+
+  /* Офлайн-индикатор и очередь */
+  .net-dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle;}
+  .net-online{background:#4ade80;}
+  .net-offline{background:#f87171;}
+  .header-right{display:flex; align-items:center; gap:12px;}
+  .drafts-btn{background:rgba(255,255,255,.15); border:none; color:#fff; font-size:12px; padding:6px 10px; border-radius:8px; cursor:pointer; white-space:nowrap;}
+  .drafts-btn .badge{background:var(--amber); color:#1a1a1a; border-radius:10px; padding:0 6px; font-weight:700; margin-left:4px; font-size:11px;}
+  .offline-banner{display:none; background:#fff4d6; color:#7a5c00; font-size:12px; padding:8px 16px; text-align:center; border-bottom:1px solid #f0dca0;}
+  .offline-banner.show{display:block;}
+
+  .drafts-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:200; align-items:flex-start; justify-content:center; padding:16px; overflow:auto;}
+  .drafts-overlay.show{display:flex;}
+  .drafts-panel{background:#fff; border-radius:12px; max-width:520px; width:100%; padding:16px; margin-top:20px;}
+  .drafts-panel h3{margin:0 0 4px; color:var(--navy); font-size:16px;}
+  .drafts-panel .close-x{float:right; background:none; border:none; font-size:20px; color:#888; cursor:pointer; line-height:1;}
+  .draft-item{border:1px solid #e5e5e5; border-radius:10px; padding:10px 12px; margin:10px 0; font-size:13px;}
+  .draft-item .di-top{display:flex; justify-content:space-between; gap:8px; align-items:baseline;}
+  .draft-item .di-client{font-weight:700; color:var(--navy);}
+  .draft-item .di-meta{color:#777; font-size:12px; margin-top:2px;}
+  .draft-item .di-actions{margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;}
+  .draft-item .di-actions button{padding:6px 10px; border-radius:7px; border:none; font-size:12px; font-weight:600; cursor:pointer;}
+  .di-sync{background:var(--navy); color:#fff;} .di-cont{background:var(--amber); color:#1a1a1a;} .di-del{background:#eee; color:#a00;}
+  .st-pill{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;}
+  .st-draft{background:#eef2f7; color:#555;} .st-pending{background:#fdf3d7; color:#9a7400;}
+  .st-syncing{background:#dbeafe; color:#1e40af;} .st-done{background:#e7f6ec; color:#2E9E4C;} .st-error{background:#fdecea; color:#D9362B;}
+  .sync-all-btn{width:100%; padding:12px; border-radius:10px; border:none; background:var(--navy); color:#fff; font-weight:700; font-size:14px; cursor:pointer; margin-top:6px;}
+  .sync-all-btn:disabled{opacity:.5;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="title" id="headerTitle">⚡ Экспресс-диагностика ИБП</div>
+    <div class="act-num" id="actNumLabel"><span class="net-dot net-online" id="netDot"></span><span id="netText">онлайн</span></div>
+  </div>
+  <div class="header-right">
+    <button class="drafts-btn" id="draftsBtn" onclick="openDrafts()">🗂 Черновики<span class="badge" id="draftsBadge" style="display:none;">0</span></button>
+    <div id="stepLabel" style="font-size:12px;">Шаг 1 / 6</div>
+  </div>
+</header>
+<div class="progress"><div class="progress-bar" id="progressBar" style="width:16%"></div></div>
+<div class="offline-banner" id="offlineBanner">📴 Офлайн — акт сохранится на телефоне и уйдёт на сервер при появлении сети. Голосовой ввод недоступен без интернета.</div>
+
+<div class="wrap">
+
+  <!-- ШАГ 1: Объект -->
+  <div class="step active" data-step="1">
+    <div class="card">
+      <h3>Тип визита</h3>
+      <div class="mode-switch">
+        <button type="button" id="modeDiag" class="mode-btn mode-sel" onclick="setMode('diag')">⚡ Экспресс-диагностика</button>
+        <button type="button" id="modeTo" class="mode-btn" onclick="setMode('to')">🔧 Техобслуживание</button>
+      </div>
+      <h3>Объект и заказчик</h3>
+      <label>Заказчик *</label>
+      <input type="text" id="f_client" placeholder="ТОО / компания">
+      <label>Контактное лицо (ФИО + телефон)</label>
+      <input type="text" id="f_contact" placeholder="Бакыт, +7...">
+      <label>Адрес объекта</label>
+      <input type="text" id="f_address" placeholder="г. Алматы, ул. ...">
+      <label>Основание (договор / заявка / письмо)</label>
+      <input type="text" id="f_basis" placeholder="Договор №ERNES-...">
+      <div class="hint" id="basisHint" style="display:none;">Для ТО — укажите номер договора (обслуживание по подписанному договору).</div>
+      <label>Инженер</label>
+      <input type="text" id="f_engineer" placeholder="ФИО инженера">
+    </div>
+  </div>
+
+  <!-- ШАГ 2: ИБП (список; в режиме диагностики — 6 статусов, в режиме ТО — чек-лист) -->
+  <div class="step" data-step="2">
+    <div class="card">
+      <h3>ИБП на объекте</h3>
+      <div class="hint-top" id="unitsHint">У каждого ИБП — свои данные, своё состояние систем и свои фото. Карточку можно свернуть, чтобы не листать лишнее.</div>
+      <div id="unitsContainer"></div>
+    </div>
+  </div>
+
+  <!-- ШАГ 3: Нагрузки (список) — только диагностика -->
+  <div class="step" data-step="3">
+    <div class="card">
+      <h3>Нагрузки</h3>
+      <div class="hint-top">Необязательно — заполняй, если нужно зафиксировать, что запитано от ИБП.</div>
+      <div id="loadsContainer"></div>
+    </div>
+  </div>
+
+  <!-- ШАГ 4: ДГУ — только диагностика -->
+  <div class="step" data-step="4">
+    <div class="card">
+      <h3>ДГУ (дизель-генератор)</h3>
+      <div class="toggle-row">
+        <input type="checkbox" id="f_gensetToggle" onchange="toggleGenset()">
+        <label for="f_gensetToggle">На объекте установлен ДГУ</label>
+      </div>
+      <div id="gensetContainer" style="display:none; margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- ШАГ 5: Общие фото объекта -->
+  <div class="step" data-step="5">
+    <div class="card">
+      <h3>Общие фото объекта / помещения</h3>
+      <div class="hint-top">Фото конкретных ИБП и систем уже сделаны на шаге ИБП — здесь только общие кадры (вход в серверную, щитовая целиком и т.п.)</div>
+      <label class="photo-btn">📷 Добавить фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGeneralPhoto(event)"></label>
+      <div class="thumbs" id="thumbs_general"></div>
+    </div>
+  </div>
+
+  <!-- ШАГ 6: Заключение -->
+  <div class="step" data-step="6">
+    <div class="card">
+      <h3>Заключение и рекомендации</h3>
+      <div class="conclusion-box">
+        <textarea id="f_conclusion" placeholder="Опишите вручную или наговорите кнопкой ниже..."></textarea>
+        <button type="button" class="big-mic" id="bigMicBtn">🎤 Наговорить заключение</button>
+        <div class="hint">Можно диктовать несколько раз подряд — текст дописывается. Перед отправкой проверьте и поправьте текст.</div>
+      </div>
+    </div>
+    <div class="card" id="summaryCard">
+      <h3>Проверка перед отправкой</h3>
+      <div id="summaryBox"></div>
+    </div>
+  </div>
+
+  <!-- Экран отправки -->
+  <div class="spinner" id="spinner">⏳ Сохранение...</div>
+  <div class="success-screen" id="successScreen" style="display:none;">
+    <div id="successTitle">✅ Акт сохранён</div>
+    <div class="act-big" id="successActNum"></div>
+    <div class="hint" id="successHint"></div>
+    <button type="button" class="btn-next" style="margin-top:16px;padding:12px 20px;border-radius:8px;border:none;color:#fff;background:var(--navy);" onclick="location.reload()">Новый акт</button>
+    <button type="button" class="drafts-btn" style="margin-top:10px;background:#eee;color:#333;padding:10px 16px;" onclick="openDrafts()">🗂 Открыть очередь</button>
+  </div>
+
+</div>
+
+<!-- Оверлей: черновики и очередь синхронизации -->
+<div class="drafts-overlay" id="draftsOverlay">
+  <div class="drafts-panel">
+    <button class="close-x" onclick="closeDrafts()">✕</button>
+    <h3>Черновики и очередь</h3>
+    <div class="hint" id="draftsNet"></div>
+    <button class="sync-all-btn" id="syncAllBtn" onclick="syncAllNow()">🔄 Синхронизировать всё</button>
+    <div id="draftsList" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<div class="footer-nav" id="footerNav">
+  <button class="btn-back" id="btnBack" onclick="prevStep()">Назад</button>
+  <button class="btn-next" id="btnNext" onclick="nextStep()">Далее</button>
+</div>
+
+<script>
+// ВСТАВЬ СЮДА ту же ссылку .../exec из Apps Script
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
+
+function callBackend(action, data){
+  var body = Object.assign({ action: action }, data || {});
+  return fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    if(!res.ok) throw new Error(res.error || 'Неизвестная ошибка сервера');
+    return res.data;
+  });
+}
+
+/* ===================== РЕЖИМ ДИАГНОСТИКИ (без изменений) ===================== */
+var STATUS_ITEMS = [
+  {key:'statusInverter',  title:'Инверторный блок'},
+  {key:'statusRectifier', title:'Выпрямительный блок'},
+  {key:'statusBattery',   title:'АКБ'},
+  {key:'statusDisplay',   title:'Индикация ИБП'},
+  {key:'statusFans',      title:'Вентиляторы'},
+  {key:'statusDust',      title:'Запылённость помещения'}
+];
+
+function emptyUnitStatuses(){
+  var obj = {};
+  STATUS_ITEMS.forEach(function(item){ obj[item.key] = { value:'', comment:'' }; });
+  return obj;
+}
+
+/* ===================== РЕЖИМ ТО: схема чек-листа ===================== */
+// Типы пунктов: status (🟢🟡🔴 + коммент [+фото]), num (число+ед.),
+// phase (L1/L2/L3), check (чекбокс), text (текст+голос), cells (сетка АКБ).
+var TO_SECTIONS = [
+  {n:1, title:'Условия эксплуатации', items:[
+    {t:'num',    key:'s1_temp',      label:'Температура в помещении', unit:'°C'},
+    {t:'num',    key:'s1_humidity',  label:'Влажность воздуха',       unit:'%'},
+    {t:'status', key:'s1_placement', label:'Выполнение требований по размещению ИБП'},
+    {t:'status', key:'s1_grounding', label:'Заземление корпусов ИБП / щитов / АКБ'},
+    {t:'num',    key:'s1_groundOhm', label:'Сопротивление контура заземления', unit:'Ом'}
+  ]},
+  {n:2, title:'Осмотр внешнего и внутреннего состояния', items:[
+    {t:'status', key:'s2_connections', label:'Электрические соединения блоков и узлов'},
+    {t:'status', key:'s2_boards',      label:'Состояние плат и прочих компонентов'},
+    {t:'status', key:'s2_fans',        label:'Состояние вентиляторов'},
+    {t:'status', key:'s2_thermo',      label:'Термография силовых соединений', photo:true}
+  ]},
+  {n:3, title:'Очистка оборудования', items:[
+    {t:'check', key:'s3_general', label:'Общая очистка оборудования'},
+    {t:'check', key:'s3_dust',    label:'Очистка от пыли (эл. блоки, силовые части)'}
+  ]},
+  {n:4, title:'Механические проверки', items:[
+    {t:'status', key:'s4_damage',     label:'Отсутствие внешних механических повреждений'},
+    {t:'status', key:'s4_extConn',    label:'Надёжность внешних подключений (щиты БЭП)'},
+    {t:'status', key:'s4_intMount',   label:'Надёжность крепления компонентов внутри'},
+    {t:'status', key:'s4_fans',       label:'Работа вентиляторов внутри ИБП'},
+    {t:'status', key:'s4_filters',    label:'Воздушные фильтры (замена при необходимости)'},
+    {t:'check',  key:'s4_torqueDone', label:'Протяжка силовых соединений по спецификации'},
+    {t:'num',    key:'s4_torqueNm',   label:'Усилие протяжки', unit:'Н·м'}
+  ]},
+  {n:5, title:'Журналы и логи', items:[
+    {t:'check', key:'s5_done', label:'Просмотр архива событий / данных оборудования'},
+    {t:'text',  key:'s5_text', label:'Что найдено в журналах'}
+  ]},
+  {n:6, title:'ПО / прошивка', items:[
+    {t:'check', key:'s6_done',    label:'Проверка ПО и аппаратного обеспечения'},
+    {t:'text',  key:'s6_version', label:'Версия ПО / прошивки, обновление'}
+  ]},
+  {n:7, title:'Проверка режимов работы', items:[
+    {t:'check', key:'s7_normal',     label:'Нормальный режим'},
+    {t:'check', key:'s7_battery',    label:'Режим работы от батарей'},
+    {t:'check', key:'s7_autobypass', label:'Автоматический байпас'},
+    {t:'check', key:'s7_manbypass',  label:'Механический байпас'},
+    {t:'check', key:'s7_transfer',   label:'Переключение bypass ↔ обратно (бесперебойность)'},
+    {t:'check', key:'s7_parallelNA', label:'Параллель/резерв — не применимо (отдельный ИБП)'},
+    {t:'check', key:'s7_loadBalance',label:'Баланс нагрузки между модулями'},
+    {t:'check', key:'s7_canbus',     label:'Статус CAN-шины синхронизации'}
+  ]},
+  {n:8, title:'Замеры входных / выходных параметров', items:[
+    {t:'phase', key:'s8_uin',  label:'Входное напряжение', unit:'В'},
+    {t:'phase', key:'s8_iin',  label:'Входной ток',        unit:'А'},
+    {t:'num',   key:'s8_fin',  label:'Частота входного напряжения', unit:'Гц'},
+    {t:'phase', key:'s8_uout', label:'Выходное напряжение', unit:'В'},
+    {t:'phase', key:'s8_iout', label:'Выходной ток',        unit:'А'},
+    {t:'num',   key:'s8_fout', label:'Частота выходного напряжения', unit:'Гц'}
+  ]},
+  {n:9, title:'Сверка показаний', items:[
+    {t:'status', key:'s9', label:'Расчёт vs индикация монитора ИБП / система мониторинга'}
+  ]},
+  {n:10, title:'Аккумуляторные батареи', items:[
+    {t:'status', key:'s10_mount',     label:'Крепление компонентов внутри батарейных модулей'},
+    {t:'num',    key:'s10_moduleV',   label:'Напряжение на батарейном модуле', unit:'В'},
+    {t:'cells',  key:'s10_cells',     label:'Элементы АКБ: напряжение и внутр. сопротивление'},
+    {t:'status', key:'s10_corrosion', label:'Коррозия / утечка электролита на клеммах'},
+    {t:'check',  key:'s10_adjust',    label:'Регулировка цепей измерения напряжения АКБ'},
+    {t:'num',    key:'s10_capacity',  label:'Остаточная ёмкость АКБ', unit:'%'}
+  ]},
+  {n:11, title:'Выпрямитель и зарядное устройство', items:[
+    {t:'check', key:'s11_nominal',  label:'Установка номинального напряжения основной сети'},
+    {t:'check', key:'s11_adjustUF', label:'Регулировка цепей измерения U/F основной сети'},
+    {t:'num',   key:'s11_chargeA',  label:'Ток заряда АКБ', unit:'А'},
+    {t:'num',   key:'s11_floatV',   label:'Напряжение поддерживающего заряда', unit:'В'}
+  ]},
+  {n:12, title:'Контрольный тест', items:[
+    {t:'status', key:'s12', label:'Реакция ИБП на пропадание входного напряжения'}
+  ]}
+];
+
+function forEachToItem(cb){
+  TO_SECTIONS.forEach(function(sec){ sec.items.forEach(function(it){ cb(it, sec); }); });
+}
+
+function emptyToData(){
+  var o = {};
+  forEachToItem(function(it){
+    if(it.t === 'status') o[it.key] = { value:'', comment:'' };
+    else if(it.t === 'check') o[it.key] = false;
+    else if(it.t === 'phase') o[it.key] = ['','',''];
+    else if(it.t === 'cells') o[it.key] = [];
+    else o[it.key] = ''; // num, text
+  });
+  o.defect = { value:'', comment:'' }; // выявленные неисправности → замена/ремонт
+  return o;
+}
+
+/* ===================== Общая модель ===================== */
+function emptyUnit(){
+  return {
+    model:'',serial:'',cabinetType:'Внутренний',cabinetCount:'',batteryCount:'',batteryCapacity:'',batteryModel:'',batteryYear:'',roomTemp:'',
+    statuses: emptyUnitStatuses(),
+    to: emptyToData(),
+    collapsed: true
+  };
+}
+function emptyLoad(){
+  return {name:'',power:'',comment:''};
+}
+function emptyGenset(){
+  return {model:'',serial:'',power:'',motohours:'',status:'',comment:''};
+}
+
+var state = {
+  mode: 'diag',            // 'diag' | 'to'
+  localId: null,           // локальный ID черновика (offline-first); № акта присвоит сервер при синхронизации
+  units: [emptyUnit()],
+  loads: [],
+  genset: []
+};
+
+// Последовательности шагов по режимам (числа — data-step блоков в DOM)
+var STEP_SEQUENCES = { diag:[1,2,3,4,5,6], to:[1,2,5,6] };
+var seqIndex = 0;
+function seq(){ return STEP_SEQUENCES[state.mode]; }
+function curStepNum(){ return seq()[seqIndex]; }
+
+/* ===================== Переключатель режима ===================== */
+function setMode(m){
+  // Режим переключаем только на шаге 1 (до заполнения ИБП), чтобы не путать поток
+  if(seqIndex !== 0){
+    alert('Режим можно выбрать только в начале. Чтобы сменить — нажмите «Новый акт».');
+    return;
+  }
+  state.mode = m;
+  seqIndex = 0;
+  document.getElementById('modeDiag').classList.toggle('mode-sel', m === 'diag');
+  document.getElementById('modeTo').classList.toggle('mode-sel', m === 'to');
+  document.getElementById('headerTitle').textContent = (m === 'to') ? '🔧 Техобслуживание ИБП' : '⚡ Экспресс-диагностика ИБП';
+  document.getElementById('basisHint').style.display = (m === 'to') ? 'block' : 'none';
+  document.getElementById('f_basis').placeholder = (m === 'to') ? 'Договор № ... (по нему выполняется ТО)' : 'Договор №ERNES-...';
+  document.getElementById('unitsHint').textContent = (m === 'to')
+    ? 'По каждому ИБП — полный чек-лист ТО (12 разделов), замеры и фото. Серийный № обязателен: это ключ карточки ИБП и QR.'
+    : 'У каждого ИБП — свои данные, своё состояние систем и свои фото. Карточку можно свернуть, чтобы не листать лишнее.';
+  renderUnits();
+  showStep();
+}
+
+/* ===================== ИБП — диспетчер рендера ===================== */
+function renderUnits(){
+  if(state.mode === 'to'){ renderUnitsTO(); return; }
+  renderUnitsDiag();
+}
+
+/* ---- Диагностика: карточка ИБП + опросник 6 статусов ---- */
+function renderUnitsDiag(){
+  var html = state.units.map(function(u, idx){
+    var collapsed = u.collapsed;
+    var headerLabel = 'ИБП #'+(idx+1) + (u.model ? ' — '+esc(u.model) : '') + (u.serial ? ' ('+esc(u.serial)+')' : '');
+    var badges = STATUS_ITEMS.map(function(item){
+      var v = u.statuses[item.key].value;
+      var cls = v==='green'?'green':v==='yellow'?'yellow':v==='red'?'red':'gray';
+      return '<span class="mini-dot" style="background:'+(cls==='gray'?'#ddd':'var(--'+cls+')')+'"></span>';
+    }).join('');
+
+    var body = '';
+    if(!collapsed){
+      body = unitIdFieldsHtml(u, idx) +
+        '<div class="status-section-title">Состояние систем — ИБП #'+(idx+1)+'</div>'+
+        renderUnitStatusItemsHtml(idx);
+    }
+
+    return ''+
+    '<div class="sub-card">'+
+      (state.units.length > 1 ? '<button type="button" class="remove-btn" onclick="removeUnit('+idx+')">✕</button>' : '')+
+      '<div class="unit-header" onclick="toggleUnitCollapse('+idx+')">'+
+        '<span class="collapse-arrow">'+(collapsed?'▸':'▾')+'</span>'+
+        '<span>'+headerLabel+'</span>'+
+        '<span class="unit-badges">'+badges+'</span>'+
+      '</div>'+
+      body+
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="add-btn" onclick="addUnit()">+ Добавить ИБП</button>';
+  document.getElementById('unitsContainer').innerHTML = html;
+
+  state.units.forEach(function(u, idx){
+    if(u.collapsed) return;
+    STATUS_ITEMS.forEach(function(item){
+      var v = u.statuses[item.key].value;
+      if(v){
+        var el = document.getElementById('ubtn_'+idx+'_'+item.key+'_'+v);
+        if(el) el.classList.add('sel-'+v);
+      }
+    });
+  });
+}
+
+// Общий блок идентификации ИБП (модель / серийник+скан / шкаф / АКБ-мета / общее фото)
+function unitIdFieldsHtml(u, idx){
+  return ''+
+    '<label>Модель ИБП</label>'+
+    '<input type="text" value="'+esc(u.model)+'" oninput="state.units['+idx+'].model=this.value; syncUnitHeader('+idx+')" placeholder="напр. AEC IST7-20">'+
+    '<label>Серийный № ИБП</label>'+
+    '<div class="inline-row">'+
+      '<div><input type="text" id="serial_'+idx+'" value="'+esc(u.serial)+'" oninput="state.units['+idx+'].serial=this.value; syncUnitHeader('+idx+')"></div>'+
+      '<button type="button" class="scan-btn" id="scanBtn_'+idx+'" onclick="triggerScan('+idx+')">📷 Скан</button>'+
+      '<input type="file" accept="image/*" capture="environment" id="scanFile_'+idx+'" style="display:none" onchange="scanSerial('+idx+',event)">'+
+    '</div>'+
+    '<div class="row2">'+
+      '<div><label>Тип аккум. шкафа</label>'+
+      '<select onchange="state.units['+idx+'].cabinetType=this.value">'+
+        '<option'+(u.cabinetType==='Внутренний'?' selected':'')+'>Внутренний</option>'+
+        '<option'+(u.cabinetType==='Внешний'?' selected':'')+'>Внешний</option>'+
+      '</select></div>'+
+      '<div><label>Кол-во шкафов</label><input type="number" value="'+esc(u.cabinetCount)+'" oninput="state.units['+idx+'].cabinetCount=this.value"></div>'+
+    '</div>'+
+    '<div class="row2">'+
+      '<div><label>Кол-во АКБ, шт</label><input type="number" value="'+esc(u.batteryCount)+'" oninput="state.units['+idx+'].batteryCount=this.value"></div>'+
+      '<div><label>Ёмкость АКБ, Ач</label><input type="number" value="'+esc(u.batteryCapacity)+'" oninput="state.units['+idx+'].batteryCapacity=this.value"></div>'+
+    '</div>'+
+    '<label>Модель/марка АКБ</label>'+
+    '<input type="text" value="'+esc(u.batteryModel)+'" oninput="state.units['+idx+'].batteryModel=this.value">'+
+    '<div class="row2">'+
+      '<div><label>Год установки АКБ</label><input type="number" value="'+esc(u.batteryYear)+'" oninput="state.units['+idx+'].batteryYear=this.value"></div>'+
+      '<div><label>Температура помещения, °C</label><input type="number" value="'+esc(u.roomTemp)+'" oninput="state.units['+idx+'].roomTemp=this.value"></div>'+
+    '</div>'+
+    '<label class="photo-btn">📷 Общее фото этого ИБП<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/Общее фото\')"></label>'+
+    '<div class="thumbs" id="thumbs_unit_'+idx+'"></div>';
+}
+
+function renderUnitStatusItemsHtml(idx){
+  return STATUS_ITEMS.map(function(item){
+    var s = state.units[idx].statuses[item.key];
+    return ''+
+    '<div class="status-item">'+
+      '<div class="item-title">'+item.title+'</div>'+
+      '<div class="status-pick">'+
+        '<button type="button" id="ubtn_'+idx+'_'+item.key+'_green" onclick="setUnitStatus('+idx+',\''+item.key+'\',\'green\')">🟢 Норма</button>'+
+        '<button type="button" id="ubtn_'+idx+'_'+item.key+'_yellow" onclick="setUnitStatus('+idx+',\''+item.key+'\',\'yellow\')">🟡 Замечание</button>'+
+        '<button type="button" id="ubtn_'+idx+'_'+item.key+'_red" onclick="setUnitStatus('+idx+',\''+item.key+'\',\'red\')">🔴 Неисправность</button>'+
+      '</div>'+
+      '<div class="mic-row">'+
+        '<textarea placeholder="Комментарий (необязательно)" id="ucomment_'+idx+'_'+item.key+'" oninput="state.units['+idx+'].statuses[\''+item.key+'\'].comment=this.value">'+esc(s.comment)+'</textarea>'+
+        '<button type="button" class="mic-btn" onclick="toggleMic(this, \'ucomment_'+idx+'_'+item.key+'\')">🎤</button>'+
+      '</div>'+
+      '<label class="photo-btn">📷 Фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/'+item.title+'\')"></label>'+
+      '<div class="thumbs" id="thumbs_unit_'+idx+'_'+item.key+'"></div>'+
+    '</div>';
+  }).join('');
+}
+
+/* ---- ТО: карточка ИБП + чек-лист из 12 разделов ---- */
+function renderUnitsTO(){
+  var html = state.units.map(function(u, idx){
+    var collapsed = u.collapsed;
+    var headerLabel = 'ИБП #'+(idx+1) + (u.model ? ' — '+esc(u.model) : '') + (u.serial ? ' ('+esc(u.serial)+')' : '');
+
+    var body = '';
+    if(!collapsed){
+      var sections = TO_SECTIONS.map(function(sec){
+        var items = sec.items.map(function(it){ return renderToItem(idx, it); }).join('');
+        return '<div class="status-section-title">'+sec.n+'. '+sec.title+'</div>'+items;
+      }).join('');
+      body = unitIdFieldsHtml(u, idx) + sections +
+        '<div class="status-section-title">Выявленные неисправности</div>'+
+        toStatusHtml(idx, {key:'defect', label:'Требуется замена / ремонт узлов', t:'status', photo:true});
+    }
+
+    return ''+
+    '<div class="sub-card">'+
+      (state.units.length > 1 ? '<button type="button" class="remove-btn" onclick="removeUnit('+idx+')">✕</button>' : '')+
+      '<div class="unit-header" onclick="toggleUnitCollapse('+idx+')">'+
+        '<span class="collapse-arrow">'+(collapsed?'▸':'▾')+'</span>'+
+        '<span>'+headerLabel+'</span>'+
+      '</div>'+
+      body+
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="add-btn" onclick="addUnit()">+ Добавить ИБП</button>';
+  document.getElementById('unitsContainer').innerHTML = html;
+
+  // подсветка выбранных статусов + построение сеток АКБ
+  state.units.forEach(function(u, idx){
+    if(u.collapsed) return;
+    var statusKeys = [];
+    forEachToItem(function(it){ if(it.t === 'status') statusKeys.push(it.key); });
+    statusKeys.push('defect');
+    statusKeys.forEach(function(key){
+      var slot = u.to[key];
+      var v = slot && slot.value;
+      if(v){ var el = document.getElementById('tobtn_'+idx+'_'+key+'_'+v); if(el) el.classList.add('sel-'+v); }
+    });
+    forEachToItem(function(it){ if(it.t === 'cells') renderCellGrid(idx, it.key); });
+  });
+}
+
+function renderToItem(idx, item){
+  var u = state.units[idx];
+  var v = u.to[item.key];
+  var kq = '\''+item.key+'\'';
+  if(item.t === 'status') return toStatusHtml(idx, item);
+  if(item.t === 'num'){
+    return '<div class="to-field"><label>'+item.label+(item.unit?' , '+item.unit:'')+'</label>'+
+      '<input type="number" step="any" value="'+esc(v)+'" oninput="state.units['+idx+'].to['+kq+']=this.value"></div>';
+  }
+  if(item.t === 'text'){
+    return '<div class="to-field"><label>'+item.label+'</label><div class="mic-row">'+
+      '<textarea id="totext_'+idx+'_'+item.key+'" oninput="state.units['+idx+'].to['+kq+']=this.value">'+esc(v)+'</textarea>'+
+      '<button type="button" class="mic-btn" onclick="toggleMic(this, \'totext_'+idx+'_'+item.key+'\')">🎤</button></div></div>';
+  }
+  if(item.t === 'check'){
+    return '<div class="toggle-row">'+
+      '<input type="checkbox" id="tochk_'+idx+'_'+item.key+'" '+(v?'checked':'')+' onchange="state.units['+idx+'].to['+kq+']=this.checked">'+
+      '<label for="tochk_'+idx+'_'+item.key+'">'+item.label+'</label></div>';
+  }
+  if(item.t === 'phase'){
+    var cells = ['L1','L2','L3'].map(function(ph, pi){
+      return '<div class="phase-cell"><span>'+ph+'</span>'+
+        '<input type="number" step="any" value="'+esc(v[pi])+'" oninput="state.units['+idx+'].to['+kq+']['+pi+']=this.value"></div>';
+    }).join('');
+    return '<div class="to-field"><label>'+item.label+(item.unit?' , '+item.unit:'')+'</label><div class="phase-row">'+cells+'</div></div>';
+  }
+  if(item.t === 'cells') return toCellsHtml(idx, item);
+  return '';
+}
+
+function toStatusHtml(idx, item){
+  var s = state.units[idx].to[item.key];
+  var photoBtn = item.photo
+    ? '<label class="photo-btn">📷 Фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/'+item.label+'\')"></label><div class="thumbs" id="tothumbs_'+idx+'_'+item.key+'"></div>'
+    : '';
+  return ''+
+  '<div class="status-item">'+
+    '<div class="item-title">'+item.label+'</div>'+
+    '<div class="status-pick">'+
+      '<button type="button" id="tobtn_'+idx+'_'+item.key+'_green" onclick="setToStatus('+idx+',\''+item.key+'\',\'green\')">🟢 Норма</button>'+
+      '<button type="button" id="tobtn_'+idx+'_'+item.key+'_yellow" onclick="setToStatus('+idx+',\''+item.key+'\',\'yellow\')">🟡 Замечание</button>'+
+      '<button type="button" id="tobtn_'+idx+'_'+item.key+'_red" onclick="setToStatus('+idx+',\''+item.key+'\',\'red\')">🔴 Неисправность</button>'+
+    '</div>'+
+    '<div class="mic-row">'+
+      '<textarea placeholder="Комментарий (необязательно)" id="tocomment_'+idx+'_'+item.key+'" oninput="state.units['+idx+'].to[\''+item.key+'\'].comment=this.value">'+esc(s.comment)+'</textarea>'+
+      '<button type="button" class="mic-btn" onclick="toggleMic(this, \'tocomment_'+idx+'_'+item.key+'\')">🎤</button>'+
+    '</div>'+
+    photoBtn+
+  '</div>';
+}
+
+function setToStatus(idx, key, val){
+  state.units[idx].to[key].value = val;
+  ['green','yellow','red'].forEach(function(c){
+    var el = document.getElementById('tobtn_'+idx+'_'+key+'_'+c);
+    if(el) el.classList.remove('sel-'+c);
+  });
+  var target = document.getElementById('tobtn_'+idx+'_'+key+'_'+val);
+  if(target) target.classList.add('sel-'+val);
+}
+
+/* ---- Сетка элементов АКБ (U + внутр. сопротивление, автоподсветка слабых) ---- */
+function toCellsHtml(idx, item){
+  var arr = state.units[idx].to[item.key];
+  return '<div class="to-cells">'+
+    '<label>'+item.label+'</label>'+
+    '<div class="cell-legend">Задайте число элементов — появится сетка. Слабые банки (низкое U или высокое R относительно среднего) подсветятся красным.</div>'+
+    '<label>Кол-во элементов</label>'+
+    '<input type="number" min="0" max="240" value="'+(arr.length || '')+'" onchange="setCellCount('+idx+',\''+item.key+'\',this.value)">'+
+    '<div id="cellgrid_'+idx+'_'+item.key+'" style="margin-top:8px;"></div>'+
+  '</div>';
+}
+
+function setCellCount(idx, key, val){
+  var n = parseInt(val, 10);
+  if(isNaN(n) || n < 0) n = 0;
+  if(n > 240) n = 240;
+  var arr = state.units[idx].to[key];
+  while(arr.length < n) arr.push({u:'', r:''});
+  if(arr.length > n) arr.length = n;
+  renderCellGrid(idx, key);
+}
+
+function renderCellGrid(idx, key){
+  var arr = state.units[idx].to[key];
+  var rows = arr.map(function(c, i){
+    return '<div class="cell-row" id="cellrow_'+idx+'_'+key+'_'+i+'">'+
+      '<span class="cell-no">'+(i+1)+'</span>'+
+      '<input type="number" step="any" placeholder="U, В" value="'+esc(c.u)+'" oninput="state.units['+idx+'].to[\''+key+'\']['+i+'].u=this.value; reHighlightCells('+idx+',\''+key+'\')">'+
+      '<input type="number" step="any" placeholder="R, мОм" value="'+esc(c.r)+'" oninput="state.units['+idx+'].to[\''+key+'\']['+i+'].r=this.value; reHighlightCells('+idx+',\''+key+'\')">'+
+    '</div>';
+  }).join('');
+  var el = document.getElementById('cellgrid_'+idx+'_'+key);
+  if(el){ el.innerHTML = rows; reHighlightCells(idx, key); }
+}
+
+// Пороги эвристики слабой банки: U ниже среднего на 3%, либо R выше среднего на 30%.
+function weakCellFlags(arr){
+  var us = [], rs = [];
+  arr.forEach(function(c){
+    var u = parseFloat(c.u); if(!isNaN(u)) us.push(u);
+    var r = parseFloat(c.r); if(!isNaN(r)) rs.push(r);
+  });
+  var meanU = us.length ? us.reduce(function(a,b){return a+b;},0)/us.length : null;
+  var meanR = rs.length ? rs.reduce(function(a,b){return a+b;},0)/rs.length : null;
+  return arr.map(function(c){
+    var u = parseFloat(c.u), r = parseFloat(c.r);
+    var weak = false;
+    if(meanU !== null && us.length >= 3 && !isNaN(u) && u < meanU * 0.97) weak = true;
+    if(meanR !== null && rs.length >= 3 && !isNaN(r) && meanR > 0 && r > meanR * 1.30) weak = true;
+    return weak;
+  });
+}
+
+function reHighlightCells(idx, key){
+  var arr = state.units[idx].to[key];
+  var flags = weakCellFlags(arr);
+  flags.forEach(function(weak, i){
+    var row = document.getElementById('cellrow_'+idx+'_'+key+'_'+i);
+    if(row) row.classList.toggle('cell-weak', weak);
+  });
+}
+
+function weakCellNumbers(arr){
+  var flags = weakCellFlags(arr);
+  var out = [];
+  flags.forEach(function(weak, i){ if(weak) out.push(i+1); });
+  return out;
+}
+
+/* ===================== Общие операции над списком ИБП ===================== */
+function addUnit(){ state.units.push(emptyUnit()); renderUnits(); }
+function removeUnit(idx){ state.units.splice(idx,1); renderUnits(); }
+function toggleUnitCollapse(idx){ state.units[idx].collapsed = !state.units[idx].collapsed; renderUnits(); }
+function syncUnitHeader(idx){ /* заголовок обновится при следующем renderUnits() */ }
+
+function setUnitStatus(idx, key, val){
+  state.units[idx].statuses[key].value = val;
+  ['green','yellow','red'].forEach(function(c){
+    var el = document.getElementById('ubtn_'+idx+'_'+key+'_'+c);
+    if(el) el.classList.remove('sel-'+c);
+  });
+  var target = document.getElementById('ubtn_'+idx+'_'+key+'_'+val);
+  if(target) target.classList.add('sel-'+val);
+}
+
+function triggerScan(idx){ document.getElementById('scanFile_'+idx).click(); }
+
+function scanSerial(idx, evt){
+  var file = evt.target.files[0];
+  if(!file) return;
+  var btn = document.getElementById('scanBtn_'+idx);
+  var reader = new FileReader();
+  reader.onload = function(){
+    var dataUrl = reader.result;
+    if(typeof Tesseract === 'undefined'){
+      alert('Модуль распознавания не загрузился (нет интернета?). Впишите серийный № вручную.');
+      return;
+    }
+    btn.textContent = '⏳ Читаем...';
+    btn.classList.add('busy');
+    btn.disabled = true;
+    Tesseract.recognize(dataUrl, 'eng')
+      .then(function(res){
+        var raw = (res.data.text || '').trim();
+        var tokens = raw.replace(/\n/g,' ').split(/\s+/).filter(function(t){ return /[A-Za-z0-9]/.test(t); });
+        tokens.sort(function(a,b){ return b.length - a.length; });
+        var guess = tokens[0] || '';
+        guess = guess.replace(/[^A-Za-z0-9\-]/g, '');
+        if(guess){
+          state.units[idx].serial = guess;
+          document.getElementById('serial_'+idx).value = guess;
+        } else {
+          alert('Не удалось распознать текст на фото. Впишите серийный № вручную.');
+        }
+      })
+      .catch(function(err){
+        alert('Ошибка распознавания: ' + err.message + '. Впишите серийный № вручную.');
+      })
+      .finally(function(){
+        btn.textContent = '📷 Скан';
+        btn.classList.remove('busy');
+        btn.disabled = false;
+      });
+  };
+  reader.readAsDataURL(file);
+}
+
+function labelForUnitStatus(unit, key){
+  var s = unit.statuses[key];
+  var map = {green:'Норма', yellow:'Замечание', red:'Неисправность'};
+  var label = map[s.value] || 'не отмечено';
+  return s.comment ? (label + ' — ' + s.comment) : label;
+}
+
+/* ===================== Нагрузки (диагностика) ===================== */
+function renderLoads(){
+  var html = state.loads.map(function(l, idx){
+    return ''+
+    '<div class="sub-card">'+
+      '<button type="button" class="remove-btn" onclick="removeLoad('+idx+')">✕ удалить</button>'+
+      '<div class="sub-title">Нагрузка #'+(idx+1)+'</div>'+
+      '<label>Название / что запитано</label>'+
+      '<input type="text" value="'+esc(l.name)+'" oninput="state.loads['+idx+'].name=this.value" placeholder="напр. Серверная стойка №2">'+
+      '<label>Мощность (кВт / А)</label>'+
+      '<input type="text" value="'+esc(l.power)+'" oninput="state.loads['+idx+'].power=this.value">'+
+      '<label>Комментарий</label>'+
+      '<div class="mic-row">'+
+        '<textarea id="loadComment_'+idx+'" oninput="state.loads['+idx+'].comment=this.value">'+esc(l.comment)+'</textarea>'+
+        '<button type="button" class="mic-btn" onclick="toggleMic(this, \'loadComment_'+idx+'\')">🎤</button>'+
+      '</div>'+
+      '<label class="photo-btn">📷 Фото нагрузки<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'Нагрузки\')"></label>'+
+      '<div class="thumbs" id="thumbs_load_'+idx+'"></div>'+
+    '</div>';
+  }).join('');
+  html += '<button type="button" class="add-btn" onclick="addLoad()">+ Добавить нагрузку</button>';
+  document.getElementById('loadsContainer').innerHTML = html;
+}
+function addLoad(){ state.loads.push(emptyLoad()); renderLoads(); }
+function removeLoad(idx){ state.loads.splice(idx,1); renderLoads(); }
+
+/* ===================== ДГУ (диагностика) ===================== */
+function toggleGenset(){
+  var on = document.getElementById('f_gensetToggle').checked;
+  document.getElementById('gensetContainer').style.display = on ? 'block' : 'none';
+  if(on && state.genset.length === 0){
+    state.genset.push(emptyGenset());
+  }
+  if(!on){
+    state.genset = [];
+  }
+  renderGenset();
+}
+function renderGenset(){
+  var html = state.genset.map(function(g, idx){
+    return ''+
+    '<div class="sub-card">'+
+      (state.genset.length > 1 ? '<button type="button" class="remove-btn" onclick="removeGenset('+idx+')">✕ удалить</button>' : '')+
+      '<div class="sub-title">ДГУ #'+(idx+1)+'</div>'+
+      '<label>Модель ДГУ</label>'+
+      '<input type="text" value="'+esc(g.model)+'" oninput="state.genset['+idx+'].model=this.value">'+
+      '<label>Серийный №</label>'+
+      '<input type="text" value="'+esc(g.serial)+'" oninput="state.genset['+idx+'].serial=this.value">'+
+      '<div class="row2">'+
+        '<div><label>Мощность, кВА</label><input type="number" value="'+esc(g.power)+'" oninput="state.genset['+idx+'].power=this.value"></div>'+
+        '<div><label>Моточасы</label><input type="number" value="'+esc(g.motohours)+'" oninput="state.genset['+idx+'].motohours=this.value"></div>'+
+      '</div>'+
+      '<label>Состояние</label>'+
+      '<div class="status-pick">'+
+        '<button type="button" onclick="setGensetStatus('+idx+',\'green\')" id="gsBtn_'+idx+'_green">🟢 Норма</button>'+
+        '<button type="button" onclick="setGensetStatus('+idx+',\'yellow\')" id="gsBtn_'+idx+'_yellow">🟡 Замечание</button>'+
+        '<button type="button" onclick="setGensetStatus('+idx+',\'red\')" id="gsBtn_'+idx+'_red">🔴 Неисправность</button>'+
+      '</div>'+
+      '<div class="mic-row">'+
+        '<textarea id="gensetComment_'+idx+'" placeholder="Комментарий" oninput="state.genset['+idx+'].comment=this.value">'+esc(g.comment)+'</textarea>'+
+        '<button type="button" class="mic-btn" onclick="toggleMic(this, \'gensetComment_'+idx+'\')">🎤</button>'+
+      '</div>'+
+      '<label class="photo-btn">📷 Фото ДГУ<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ДГУ #'+(idx+1)+'\')"></label>'+
+      '<div class="thumbs" id="thumbs_genset_'+idx+'"></div>'+
+    '</div>';
+  }).join('');
+  if(state.genset.length){
+    html += '<button type="button" class="add-btn" onclick="addGenset()">+ Добавить ДГУ</button>';
+  }
+  document.getElementById('gensetContainer').innerHTML = html;
+  state.genset.forEach(function(g, idx){
+    if(g.status) document.getElementById('gsBtn_'+idx+'_'+g.status).classList.add('sel-'+g.status);
+  });
+}
+function addGenset(){ state.genset.push(emptyGenset()); renderGenset(); }
+function removeGenset(idx){ state.genset.splice(idx,1); renderGenset(); }
+function setGensetStatus(idx, val){
+  state.genset[idx].status = val;
+  ['green','yellow','red'].forEach(function(c){
+    document.getElementById('gsBtn_'+idx+'_'+c).classList.remove('sel-'+c);
+  });
+  document.getElementById('gsBtn_'+idx+'_'+val).classList.add('sel-'+val);
+}
+
+renderUnits();
+renderLoads();
+
+function esc(s){
+  if(s === undefined || s === null) return '';
+  return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+/* ===================== Фото (offline-first: Blob → IndexedDB) ===================== */
+// Фото больше не грузятся в Drive сразу — они копятся локально под черновиком
+// (state.localId) с тегом группы. При синхронизации sync-движок создаёт папку
+// визита и заливает всё пачкой по группам.
+function storePhotoLocal(file, group, thumbsEl){
+  ensureDraftId();
+  ErnesOffline.addPhoto(state.localId, group, file, file.type || 'image/jpeg', null)
+    .then(function(rec){
+      if(thumbsEl){
+        var img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.setAttribute('data-photo-id', rec.photoId);
+        img.title = 'Нажмите, чтобы удалить это фото';
+        img.style.cursor = 'pointer';
+        img.onclick = function(){
+          if(confirm('Удалить это фото?')){
+            ErnesOffline.deletePhoto(rec.photoId);
+            img.remove();
+          }
+        };
+        thumbsEl.appendChild(img);
+      }
+      persistDraft(); // фиксируем черновик, чтобы фото не осиротело
+    })
+    .catch(function(err){ alert('Не удалось сохранить фото локально: ' + err.message); });
+}
+
+function handleGroupPhoto(evt, group){
+  var file = evt.target.files[0];
+  if(!file) return;
+  var thumbsEl = null;
+  var parent = evt.target.closest('.status-item, .sub-card, .card');
+  if(parent){ thumbsEl = parent.querySelector('.thumbs'); }
+  storePhotoLocal(file, group, thumbsEl);
+  evt.target.value = ''; // позволяем снять то же место повторно
+}
+
+function handleGeneralPhoto(evt){
+  var file = evt.target.files[0];
+  if(!file) return;
+  storePhotoLocal(file, 'Помещение', document.getElementById('thumbs_general'));
+  evt.target.value = '';
+}
+
+/* ===================== Голосовой ввод (Web Speech API) ===================== */
+var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+var activeRecognition = null;
+var activeButtonEl = null;
+
+function toggleMic(btnEl, textareaId){
+  if(!Recognition){
+    alert('Голосовой ввод не поддерживается в этом браузере. Используйте Chrome на Android.');
+    return;
+  }
+  if(activeRecognition){
+    activeRecognition.stop();
+    return;
+  }
+  var textarea = document.getElementById(textareaId);
+  var rec = new Recognition();
+  rec.lang = 'ru-RU';
+  rec.continuous = true;
+  rec.interimResults = false;
+
+  rec.onresult = function(e){
+    var chunk = '';
+    for(var i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal){
+        chunk += e.results[i][0].transcript + ' ';
+      }
+    }
+    if(chunk){
+      textarea.value = (textarea.value ? textarea.value.trim() + ' ' : '') + chunk.trim();
+      textarea.dispatchEvent(new Event('input'));
+    }
+  };
+  rec.onend = function(){
+    btnEl.classList.remove('rec');
+    activeRecognition = null;
+    activeButtonEl = null;
+  };
+  rec.onerror = function(e){
+    btnEl.classList.remove('rec');
+    activeRecognition = null;
+    if(e.error !== 'no-speech') alert('Ошибка распознавания: ' + e.error);
+  };
+
+  activeRecognition = rec;
+  activeButtonEl = btnEl;
+  btnEl.classList.add('rec');
+  rec.start();
+}
+
+document.getElementById('bigMicBtn').addEventListener('click', function(){
+  var btn = this;
+  if(activeRecognition && activeButtonEl === btn){
+    activeRecognition.stop();
+    btn.textContent = '🎤 Наговорить заключение';
+    return;
+  }
+  if(!Recognition){
+    alert('Голосовой ввод не поддерживается в этом браузере. Используйте Chrome на Android.');
+    return;
+  }
+  var textarea = document.getElementById('f_conclusion');
+  var rec = new Recognition();
+  rec.lang = 'ru-RU';
+  rec.continuous = true;
+  rec.interimResults = false;
+  rec.onresult = function(e){
+    var chunk = '';
+    for(var i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal) chunk += e.results[i][0].transcript + ' ';
+    }
+    if(chunk){
+      textarea.value = (textarea.value ? textarea.value.trim() + ' ' : '') + chunk.trim();
+    }
+  };
+  rec.onend = function(){
+    btn.classList.remove('rec');
+    btn.textContent = '🎤 Наговорить заключение';
+    activeRecognition = null;
+    activeButtonEl = null;
+  };
+  rec.onerror = function(e){
+    btn.classList.remove('rec');
+    btn.textContent = '🎤 Наговорить заключение';
+    activeRecognition = null;
+    if(e.error !== 'no-speech') alert('Ошибка распознавания: ' + e.error);
+  };
+  activeRecognition = rec;
+  activeButtonEl = btn;
+  btn.classList.add('rec');
+  btn.textContent = '⏺ Идёт запись... (нажмите чтобы остановить)';
+  rec.start();
+});
+
+/* ===================== Навигация по шагам ===================== */
+function showStep(){
+  var n = curStepNum();
+  var total = seq().length;
+  document.querySelectorAll('.step').forEach(function(el){
+    el.classList.toggle('active', parseInt(el.dataset.step,10) === n);
+  });
+  document.getElementById('stepLabel').textContent = 'Шаг ' + (seqIndex+1) + ' / ' + total;
+  document.getElementById('progressBar').style.width = ((seqIndex+1)/total*100) + '%';
+  document.getElementById('btnBack').style.visibility = (seqIndex === 0) ? 'hidden' : 'visible';
+  var last = (seqIndex === total-1);
+  document.getElementById('btnNext').textContent = last ? 'Отправить акт' : 'Далее';
+  document.getElementById('btnNext').className = last ? 'btn-submit' : 'btn-next';
+  if(last) buildSummary();
+}
+
+function gotoStepNum(n){
+  var i = seq().indexOf(n);
+  if(i !== -1){ seqIndex = i; showStep(); }
+}
+
+function nextStep(){
+  var n = curStepNum();
+  var total = seq().length;
+
+  // Шаг 1 → фиксируем локальный черновик (сервер не трогаем: № акта присвоит
+  // синхронизация). Работает офлайн.
+  if(n === 1){
+    var client = document.getElementById('f_client').value.trim();
+    if(!client){ alert('Укажите заказчика'); return; }
+    if(state.mode === 'to'){
+      var basis = document.getElementById('f_basis').value.trim();
+      if(!basis){ alert('Для ТО укажите основание — номер договора.'); return; }
+    }
+    ensureDraftId();
+    persistDraft();
+  }
+
+  // Последний шаг → валидация + отправка
+  if(seqIndex === total-1){
+    if(state.mode === 'to'){
+      var noSerial = [];
+      state.units.forEach(function(u, idx){
+        if(!String(u.serial||'').trim()) noSerial.push('ИБП #' + (idx+1));
+      });
+      if(noSerial.length){
+        alert('Укажите серийный № (ключ карточки ИБП и QR) для: ' + noSerial.join(', '));
+        state.units.forEach(function(u){ u.collapsed = false; });
+        renderUnits();
+        gotoStepNum(2);
+        return;
+      }
+      submitAll();
+      return;
+    }
+    // диагностика: требуем отметить все 6 статусов у каждого ИБП
+    var problems = [];
+    state.units.forEach(function(u, idx){
+      STATUS_ITEMS.forEach(function(item){
+        if(!u.statuses[item.key].value){
+          problems.push('ИБП #' + (idx+1) + ' — ' + item.title);
+        }
+      });
+    });
+    if(problems.length){
+      alert('Не отмечен статус (🟢/🟡/🔴) по пунктам:\n' + problems.join('\n') + '\n\nВернитесь на шаг ИБП и отметьте все пункты.');
+      state.units.forEach(function(u){ u.collapsed = false; });
+      renderUnits();
+      gotoStepNum(2);
+      return;
+    }
+    submitAll();
+    return;
+  }
+
+  seqIndex++;
+  persistDraft();
+  showStep();
+}
+
+function prevStep(){
+  if(seqIndex === 0) return;
+  seqIndex--;
+  persistDraft();
+  showStep();
+}
+
+/* ===================== Сводка ===================== */
+function buildSummary(){
+  if(state.mode === 'to'){ buildToSummary(); return; }
+  var rows = [
+    ['Заказчик', document.getElementById('f_client').value],
+    ['Адрес', document.getElementById('f_address').value],
+    ['ИБП на объекте', state.units.length + ' шт.'],
+    ['Нагрузок указано', state.loads.length],
+    ['ДГУ', state.genset.length ? state.genset.length + ' шт.' : 'нет']
+  ];
+  state.units.forEach(function(u, idx){
+    var dots = STATUS_ITEMS.map(function(item){
+      var v = u.statuses[item.key].value;
+      return v==='green'?'🟢':v==='yellow'?'🟡':v==='red'?'🔴':'⚪';
+    }).join(' ');
+    rows.push(['ИБП #' + (idx+1) + ' статусы', dots]);
+  });
+  renderSummaryRows(rows);
+}
+
+function buildToSummary(){
+  var rows = [
+    ['Тип визита', 'Техобслуживание'],
+    ['Заказчик', document.getElementById('f_client').value],
+    ['Адрес', document.getElementById('f_address').value],
+    ['Основание (договор)', document.getElementById('f_basis').value],
+    ['ИБП по ТО', state.units.length + ' шт.']
+  ];
+  state.units.forEach(function(u, idx){
+    var reds = 0, yellows = 0;
+    forEachToItem(function(it){
+      if(it.t === 'status'){
+        var v = u.to[it.key].value;
+        if(v === 'red') reds++; else if(v === 'yellow') yellows++;
+      }
+    });
+    if(u.to.defect.value === 'red') reds++; else if(u.to.defect.value === 'yellow') yellows++;
+    var weak = weakCellNumbers(u.to.s10_cells);
+    var label = (reds ? '🔴 '+reds+' ' : '') + (yellows ? '🟡 '+yellows+' ' : '');
+    if(!label) label = '🟢 без замечаний';
+    if(weak.length) label += ' · слабых АКБ: ' + weak.length;
+    rows.push(['ИБП #'+(idx+1)+(u.serial?' ('+esc(u.serial)+')':''), label.trim()]);
+  });
+  renderSummaryRows(rows);
+}
+
+function renderSummaryRows(rows){
+  var html = rows.map(function(r){
+    return '<div class="summary-row"><span>'+r[0]+'</span><b>'+(r[1]||'—')+'</b></div>';
+  }).join('');
+  document.getElementById('summaryBox').innerHTML = html;
+}
+
+/* ===================== Отправка (offline-first) ===================== */
+// Собирает готовый payload БЕЗ № акта и folderUrl — их добавит sync-движок,
+// когда получит их от сервера при синхронизации.
+function buildDiagPayload(){
+  var unitsPayload = state.units.map(function(u){
+    var statusesOut = {};
+    STATUS_ITEMS.forEach(function(item){ statusesOut[item.key] = labelForUnitStatus(u, item.key); });
+    return {
+      model: u.model, serial: u.serial, cabinetType: u.cabinetType, cabinetCount: u.cabinetCount,
+      batteryCount: u.batteryCount, batteryCapacity: u.batteryCapacity, batteryModel: u.batteryModel,
+      batteryYear: u.batteryYear, roomTemp: u.roomTemp, statuses: statusesOut
+    };
+  });
+  return {
+    engineer: document.getElementById('f_engineer').value,
+    client: document.getElementById('f_client').value,
+    contact: document.getElementById('f_contact').value,
+    address: document.getElementById('f_address').value,
+    basis: document.getElementById('f_basis').value,
+    units: unitsPayload,
+    loads: state.loads,
+    genset: state.genset,
+    conclusion: buildFullConclusion()
+  };
+}
+
+function buildToPayload(){
+  var unitsPayload = state.units.map(function(u){
+    return {
+      model: u.model, serial: u.serial, cabinetType: u.cabinetType, cabinetCount: u.cabinetCount,
+      batteryCount: u.batteryCount, batteryCapacity: u.batteryCapacity, batteryModel: u.batteryModel,
+      batteryYear: u.batteryYear, to: u.to
+    };
+  });
+  return {
+    mode: 'to',
+    engineer: document.getElementById('f_engineer').value,
+    client: document.getElementById('f_client').value,
+    contact: document.getElementById('f_contact').value,
+    address: document.getElementById('f_address').value,
+    basis: document.getElementById('f_basis').value,
+    units: unitsPayload,
+    conclusion: buildToConclusion()
+  };
+}
+
+function submitAll(){ finalizeAndQueue(); }
+function submitAllTO(){ finalizeAndQueue(); }
+
+// Финализирует черновик локально (status pending) и пытается синхронизировать.
+function finalizeAndQueue(){
+  document.getElementById('footerNav').style.display = 'none';
+  document.querySelectorAll('.step').forEach(function(el){ el.classList.remove('active'); });
+  document.getElementById('spinner').style.display = 'block';
+
+  ensureDraftId();
+  var payload = (state.mode === 'to') ? buildToPayload() : buildDiagPayload();
+  var snapshot = collectSnapshot();
+
+  ErnesOffline.finalizeDraft(state.localId, state.mode, snapshot, payload)
+    .then(function(){
+      // Пытаемся сразу отправить, если есть сеть; иначе останется в очереди.
+      return ErnesOffline.trySync();
+    })
+    .then(function(){
+      return ErnesOffline.getDraft(state.localId);
+    })
+    .then(function(d){
+      document.getElementById('spinner').style.display = 'none';
+      var scr = document.getElementById('successScreen');
+      var title = document.getElementById('successTitle');
+      var num = document.getElementById('successActNum');
+      var hint = document.getElementById('successHint');
+      if(d && d.status === 'done'){
+        title.textContent = '✅ Акт отправлен';
+        num.textContent = d.serverActNumber || '';
+        hint.textContent = 'Записан в журнал, фото — в папку Drive по группам.';
+      } else if(d && d.status === 'error'){
+        title.textContent = '💾 Сохранён локально (ошибка отправки)';
+        num.textContent = '';
+        hint.textContent = 'Акт в очереди. ' + (d.error ? 'Причина: ' + d.error + '. ' : '') + 'Отправится при следующей синхронизации.';
+      } else {
+        title.textContent = navigator.onLine ? '💾 Сохранён, отправляется...' : '📴 Сохранён офлайн';
+        num.textContent = '';
+        hint.textContent = navigator.onLine
+          ? 'Акт в очереди — синхронизация идёт. № акта присвоится сервером.'
+          : 'Акт лежит на телефоне и уйдёт на сервер, когда появится интернет. № акта присвоится при отправке.';
+      }
+      scr.style.display = 'block';
+      refreshDraftsBadge();
+    })
+    .catch(function(err){
+      document.getElementById('spinner').style.display = 'none';
+      alert('Не удалось сохранить акт локально: ' + err.message);
+      document.getElementById('footerNav').style.display = 'flex';
+      showStep();
+    });
+}
+
+/* ===================== Формирование заключения ===================== */
+function buildFullConclusion(){
+  var main = document.getElementById('f_conclusion').value.trim();
+  var defects = [];
+  state.units.forEach(function(u, idx){
+    STATUS_ITEMS.forEach(function(item){
+      var v = u.statuses[item.key].value;
+      if(v === 'red' || v === 'yellow'){
+        defects.push('• ИБП #' + (idx+1) + ' — ' + item.title + ': ' + labelForUnitStatus(u, item.key));
+      }
+    });
+  });
+  var parts = [];
+  if(main) parts.push(main);
+  if(defects.length) parts.push('Выявленные замечания:\n' + defects.join('\n'));
+  return parts.join('\n\n');
+}
+
+function statusWord(v){
+  return v==='green'?'Норма':v==='yellow'?'Замечание':v==='red'?'Неисправность':'не отмечено';
+}
+
+function buildToConclusion(){
+  var main = document.getElementById('f_conclusion').value.trim();
+  var defects = [];
+  state.units.forEach(function(u, idx){
+    var tag = 'ИБП #' + (idx+1) + (u.serial ? ' ('+u.serial+')' : '');
+    forEachToItem(function(it){
+      if(it.t === 'status'){
+        var s = u.to[it.key];
+        if(s.value === 'red' || s.value === 'yellow'){
+          defects.push('• ' + tag + ' — ' + it.label + ': ' + statusWord(s.value) + (s.comment ? ' — ' + s.comment : ''));
+        }
+      }
+    });
+    var weak = weakCellNumbers(u.to.s10_cells);
+    if(weak.length){
+      defects.push('• ' + tag + ' — слабые элементы АКБ (низкое U / высокое R): №' + weak.join(', №'));
+    }
+    var d = u.to.defect;
+    if(d.value === 'red' || d.value === 'yellow'){
+      defects.push('• ' + tag + ' — требуется замена/ремонт: ' + statusWord(d.value) + (d.comment ? ' — ' + d.comment : ''));
+    }
+  });
+  var parts = [];
+  if(main) parts.push(main);
+  if(defects.length) parts.push('Выявленные замечания и рекомендации:\n' + defects.join('\n'));
+  return parts.join('\n\n');
+}
+
+/* ===================== ОФЛАЙН-ИНТЕГРАЦИЯ ===================== */
+ErnesOffline.setEndpoint(APPS_SCRIPT_URL);
+
+function ensureDraftId(){
+  if(!state.localId) state.localId = ErnesOffline.newLocalId();
+}
+
+// Полный снимок формы (для «Продолжить» и как основа payload при синхронизации).
+function collectSnapshot(){
+  return {
+    form: {
+      client:   document.getElementById('f_client').value,
+      contact:  document.getElementById('f_contact').value,
+      address:  document.getElementById('f_address').value,
+      basis:    document.getElementById('f_basis').value,
+      engineer: document.getElementById('f_engineer').value,
+      conclusion: document.getElementById('f_conclusion').value
+    },
+    units: state.units,
+    loads: state.loads,
+    genset: state.genset,
+    seqIndex: seqIndex
+  };
+}
+
+// Сохраняет незавершённый черновик (не в очередь). Тихо игнорирует ошибки.
+function persistDraft(){
+  if(!state.localId) return;
+  var client = document.getElementById('f_client').value.trim();
+  if(!client) return; // без заказчика черновик не заводим
+  ErnesOffline.saveDraftState(state.localId, state.mode, collectSnapshot())
+    .then(refreshDraftsBadge)
+    .catch(function(){});
+}
+
+/* ---- Индикатор сети + бейдж очереди ---- */
+function updateNetIndicator(){
+  var on = navigator.onLine;
+  var dot = document.getElementById('netDot');
+  var txt = document.getElementById('netText');
+  dot.className = 'net-dot ' + (on ? 'net-online' : 'net-offline');
+  txt.textContent = on ? 'онлайн' : 'офлайн';
+  document.getElementById('offlineBanner').classList.toggle('show', !on);
+  // Голос без сети не работает — подсветим кнопки как недоступные
+  document.querySelectorAll('.mic-btn, .big-mic').forEach(function(b){
+    b.style.opacity = on ? '' : '.4';
+    b.title = on ? '' : 'Голос недоступен офлайн';
+  });
+}
+
+function refreshDraftsBadge(){
+  return ErnesOffline.countQueued().then(function(n){
+    var b = document.getElementById('draftsBadge');
+    if(n > 0){ b.style.display = 'inline-block'; b.textContent = n; }
+    else { b.style.display = 'none'; }
+  }).catch(function(){});
+}
+
+/* ---- Экран черновиков и очереди ---- */
+function openDrafts(){
+  document.getElementById('draftsOverlay').classList.add('show');
+  renderDraftsList();
+}
+function closeDrafts(){
+  document.getElementById('draftsOverlay').classList.remove('show');
+}
+
+function statusPill(st){
+  var map = {
+    draft:   ['st-draft','не завершён'],
+    pending: ['st-pending','в очереди'],
+    syncing: ['st-syncing','отправка...'],
+    done:    ['st-done','отправлен'],
+    error:   ['st-error','ошибка']
+  };
+  var m = map[st] || map.draft;
+  return '<span class="st-pill ' + m[0] + '">' + m[1] + '</span>';
+}
+
+function renderDraftsList(){
+  var net = document.getElementById('draftsNet');
+  net.textContent = navigator.onLine ? 'Сеть есть — можно синхронизировать.' : 'Офлайн — синхронизация начнётся при появлении сети.';
+  var syncBtn = document.getElementById('syncAllBtn');
+  syncBtn.disabled = !navigator.onLine || ErnesOffline.isSyncing();
+
+  ErnesOffline.allDrafts().then(function(list){
+    var box = document.getElementById('draftsList');
+    if(!list.length){ box.innerHTML = '<div class="hint" style="padding:14px 0;">Черновиков нет</div>'; return; }
+    Promise.all(list.map(function(d){ return ErnesOffline.photoCount(d.localId).then(function(pc){ d._photos = pc; return d; }); }))
+      .then(function(){
+        box.innerHTML = list.map(function(d){
+          var f = (d.state && d.state.form) || {};
+          var client = f.client || (d.payload && d.payload.client) || '—';
+          var modeLabel = d.mode === 'to' ? '🔧 ТО' : '⚡ Диагностика';
+          var when = new Date(d.createdAt || Date.now()).toLocaleString('ru-RU');
+          var num = d.serverActNumber ? ' · ' + d.serverActNumber : '';
+          var actions = '';
+          if(d.status === 'draft'){
+            actions += '<button class="di-cont" onclick="continueDraft(\'' + d.localId + '\')">▶ Продолжить</button>';
+          }
+          if(d.status === 'pending' || d.status === 'error'){
+            actions += '<button class="di-sync" onclick="syncOne(\'' + d.localId + '\')">🔄 Отправить</button>';
+          }
+          actions += '<button class="di-del" onclick="removeDraft(\'' + d.localId + '\')">🗑 Удалить</button>';
+          return '<div class="draft-item">'+
+            '<div class="di-top"><span class="di-client">' + escapeHtml(client) + '</span>' + statusPill(d.status) + '</div>'+
+            '<div class="di-meta">' + modeLabel + num + ' · ' + when + ' · фото: ' + (d._photos||0) + '</div>'+
+            (d.error ? '<div class="di-meta" style="color:#D9362B;">' + escapeHtml(d.error) + '</div>' : '')+
+            '<div class="di-actions">' + actions + '</div>'+
+          '</div>';
+        }).join('');
+      });
+  });
+}
+
+function escapeHtml(s){
+  if(s === undefined || s === null) return '';
+  return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; });
+}
+
+function syncAllNow(){
+  if(!navigator.onLine){ alert('Нет сети. Синхронизация запустится автоматически, когда интернет появится.'); return; }
+  var btn = document.getElementById('syncAllBtn');
+  btn.disabled = true; btn.textContent = '🔄 Синхронизация...';
+  ErnesOffline.syncAll().then(function(res){
+    btn.textContent = '🔄 Синхронизировать всё';
+    if(res && res.total){ alert('Отправлено: ' + res.ok + ' из ' + res.total + (res.failed ? ', с ошибками: ' + res.failed : '')); }
+    renderDraftsList(); refreshDraftsBadge();
+  }).catch(function(err){
+    btn.disabled = false; btn.textContent = '🔄 Синхронизировать всё';
+    alert('Ошибка синхронизации: ' + err.message);
+  });
+}
+
+function syncOne(localId){
+  if(!navigator.onLine){ alert('Нет сети.'); return; }
+  ErnesOffline.syncAll().then(function(){ renderDraftsList(); refreshDraftsBadge(); });
+}
+
+function removeDraft(localId){
+  if(!confirm('Удалить этот черновик вместе с его фото? Отменить нельзя.')) return;
+  ErnesOffline.deleteDraft(localId).then(function(){ renderDraftsList(); refreshDraftsBadge(); });
+}
+
+// Восстанавливает незавершённый черновик обратно в форму (данные; фото уже в
+// хранилище и уйдут с верными группами при синхронизации).
+function continueDraft(localId){
+  ErnesOffline.getDraft(localId).then(function(d){
+    if(!d || !d.state){ alert('Черновик пуст'); return; }
+    state.localId = d.localId;
+    state.mode = d.mode || 'diag';
+    var s = d.state;
+    state.units = (s.units && s.units.length) ? s.units : [emptyUnit()];
+    state.loads = s.loads || [];
+    state.genset = s.genset || [];
+    var f = s.form || {};
+    document.getElementById('f_client').value = f.client || '';
+    document.getElementById('f_contact').value = f.contact || '';
+    document.getElementById('f_address').value = f.address || '';
+    document.getElementById('f_basis').value = f.basis || '';
+    document.getElementById('f_engineer').value = f.engineer || '';
+    document.getElementById('f_conclusion').value = f.conclusion || '';
+    // применяем режим (обновляет тексты и последовательность), затем рендер
+    seqIndex = 0; // чтобы не сработал guard в setMode
+    setMode(state.mode);
+    if(state.genset.length){
+      document.getElementById('f_gensetToggle').checked = true;
+      document.getElementById('gensetContainer').style.display = 'block';
+      renderGenset();
+    }
+    renderLoads();
+    closeDrafts();
+    seqIndex = 0;
+    showStep();
+    ErnesOffline.photoCount(localId).then(function(pc){
+      if(pc){ alert('Черновик восстановлен. Прикреплённых фото: ' + pc + ' — они сохранены и уйдут при отправке.'); }
+    });
+  });
+}
+
+/* ---- Service Worker + инициализация ---- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+
+window.addEventListener('online', function(){ updateNetIndicator(); refreshDraftsBadge(); });
+window.addEventListener('offline', updateNetIndicator);
+
+ErnesOffline.onChange(function(){ refreshDraftsBadge(); });
+
+// Стартовая инициализация офлайна
+ensureDraftId();
+updateNetIndicator();
+refreshDraftsBadge();
+// Досылаем всё, что осталось в очереди с прошлого раза (если есть сеть)
+ErnesOffline.trySync().then(function(){ refreshDraftsBadge(); });
+
+showStep();
+</script>
+</body>
+</html>

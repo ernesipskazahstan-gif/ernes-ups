@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERNES — Паспорт обслуживания ИБП</title>
+<meta name="theme-color" content="#1F4E79">
+<style>
+  :root{
+    --navy:#1F4E79; --amber:#F2B705; --cream:#FFF4D6; --gray-bg:#F2F2F2;
+    --green:#2E9E4C; --yellow:#E0A800; --red:#D9362B; --text:#222;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--gray-bg); color:var(--text);}
+  header{background:var(--navy); color:#fff; padding:18px 20px;}
+  header .brand{font-size:20px; font-weight:900;}
+  header .brand .co{display:block; font-size:11px; font-weight:600; opacity:.8; letter-spacing:.05em;}
+  .wrap{max-width:760px; margin:0 auto; padding:16px;}
+
+  .id-card{background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,.08); margin-bottom:16px; border-top:4px solid var(--amber);}
+  .id-card .big-label{font-size:12px; color:#888; text-transform:uppercase; letter-spacing:.05em;}
+  .id-card .model{font-size:22px; font-weight:800; color:var(--navy); margin:2px 0 8px;}
+  .id-card .serial{font-size:15px; font-family:monospace; background:var(--cream); display:inline-block; padding:4px 10px; border-radius:8px; font-weight:700;}
+  .id-card .site{font-size:13px; color:#666; margin-top:10px;}
+  .id-card .count{font-size:13px; color:var(--navy); font-weight:700; margin-top:8px;}
+
+  .section-title{color:var(--navy); font-size:15px; font-weight:800; margin:20px 0 10px;}
+
+  .visit{background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:12px; overflow:hidden;}
+  .visit-head{padding:14px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .visit-head .arrow{width:12px; flex-shrink:0; color:var(--navy);}
+  .visit-head .vdate{font-weight:800; color:var(--navy); font-size:15px;}
+  .visit-head .veng{font-size:12px; color:#777;}
+  .visit-head .verdict{margin-left:auto; font-size:12px; font-weight:700;}
+  .verdict .ok{color:var(--green);} .verdict .warn{color:#9a7400;} .verdict .bad{color:var(--red);}
+  .visit-body{padding:0 16px 16px; display:none;}
+  .visit-body.open{display:block;}
+
+  .kv{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px;}
+  .kv td{padding:5px 4px; border-bottom:1px solid #f0f0f0; vertical-align:top;}
+  .kv td.k{color:#666; width:44%; font-weight:600;}
+
+  .sec-title{color:var(--navy); font-size:13px; font-weight:700; margin:14px 0 6px; padding-top:10px; border-top:1px dashed #e0e0e0; text-transform:uppercase; letter-spacing:.02em;}
+  .mrow{display:flex; gap:10px; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px; align-items:baseline;}
+  .mkey{color:#555; flex:1; font-weight:600;} .mval{color:#111; text-align:right; min-width:120px; font-variant-numeric:tabular-nums;}
+  .mstatus{display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px; flex-wrap:wrap;}
+  .mstatus .nm{font-weight:600; flex:1;} .mstatus .wd{min-width:110px; text-align:right;}
+  .mstatus .cm{flex-basis:100%; color:#666; font-size:12px; padding-left:20px;}
+  .mcheck{display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px;}
+  .mcheck .mk{font-weight:700; width:18px; text-align:center;} .mcheck.on .mk{color:var(--green);} .mcheck.off .mk{color:#bbb;}
+  .phase-vals span{display:inline-block; margin-left:8px;} .phase-vals b{color:var(--navy);}
+  .dot{width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.1); flex-shrink:0; display:inline-block;}
+  .dot.green{background:var(--green);} .dot.yellow{background:var(--yellow);} .dot.red{background:var(--red);} .dot.gray{background:#ddd;}
+  .cells-table{width:100%; border-collapse:collapse; font-size:12px; margin:6px 0;}
+  .cells-table th{background:#f4f6f9; color:#555; font-weight:700; padding:4px 6px; text-align:center; border:1px solid #e6e6e6;}
+  .cells-table td{padding:4px 6px; text-align:center; border:1px solid #eee; font-variant-numeric:tabular-nums;}
+  .cells-table tr.cell-weak td{background:#fdecea; color:var(--red); font-weight:700;}
+  .cells-stats{font-size:12px; color:#555; margin:4px 0 2px;} .cells-stats .weak{color:var(--red); font-weight:700;}
+  .conclusion-box{background:var(--cream); border-radius:8px; padding:12px; font-size:13px; white-space:pre-wrap; line-height:1.5; margin-top:10px;}
+
+  .msg{background:#fff; border-radius:12px; padding:30px 20px; text-align:center; color:#777; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  footer{text-align:center; font-size:12px; color:#999; padding:20px;}
+  footer a{color:var(--navy);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">ERNES <span class="co">INDUSTRIAL POWER SYSTEMS</span></div>
+</header>
+
+<div class="wrap">
+  <div id="content"><div class="msg">Загрузка данных по ИБП...</div></div>
+</div>
+
+<footer>
+  Паспорт обслуживания ИБП · ТОО «ERNES INDUSTRIAL POWER SYSTEMS»<br>
+  <a href="https://ernes.kz" target="_blank">ernes.kz</a> · +7 (727) 380-25-44
+</footer>
+
+<script>
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
+
+/* Схема чек-листа ТО — идентична форме/журналу (ключи совпадают 1:1) */
+var TO_SECTIONS = [
+  {n:1, title:'Условия эксплуатации', items:[
+    {t:'num',    key:'s1_temp',      label:'Температура в помещении', unit:'°C'},
+    {t:'num',    key:'s1_humidity',  label:'Влажность воздуха',       unit:'%'},
+    {t:'status', key:'s1_placement', label:'Выполнение требований по размещению ИБП'},
+    {t:'status', key:'s1_grounding', label:'Заземление корпусов ИБП / щитов / АКБ'},
+    {t:'num',    key:'s1_groundOhm', label:'Сопротивление контура заземления', unit:'Ом'}
+  ]},
+  {n:2, title:'Осмотр внешнего и внутреннего состояния', items:[
+    {t:'status', key:'s2_connections', label:'Электрические соединения блоков и узлов'},
+    {t:'status', key:'s2_boards',      label:'Состояние плат и прочих компонентов'},
+    {t:'status', key:'s2_fans',        label:'Состояние вентиляторов'},
+    {t:'status', key:'s2_thermo',      label:'Термография силовых соединений'}
+  ]},
+  {n:3, title:'Очистка оборудования', items:[
+    {t:'check', key:'s3_general', label:'Общая очистка оборудования'},
+    {t:'check', key:'s3_dust',    label:'Очистка от пыли (эл. блоки, силовые части)'}
+  ]},
+  {n:4, title:'Механические проверки', items:[
+    {t:'status', key:'s4_damage',     label:'Отсутствие внешних механических повреждений'},
+    {t:'status', key:'s4_extConn',    label:'Надёжность внешних подключений (щиты БЭП)'},
+    {t:'status', key:'s4_intMount',   label:'Надёжность крепления компонентов внутри'},
+    {t:'status', key:'s4_fans',       label:'Работа вентиляторов внутри ИБП'},
+    {t:'status', key:'s4_filters',    label:'Воздушные фильтры (замена при необходимости)'},
+    {t:'check',  key:'s4_torqueDone', label:'Протяжка силовых соединений по спецификации'},
+    {t:'num',    key:'s4_torqueNm',   label:'Усилие протяжки', unit:'Н·м'}
+  ]},
+  {n:5, title:'Журналы и логи', items:[
+    {t:'check', key:'s5_done', label:'Просмотр архива событий / данных оборудования'},
+    {t:'text',  key:'s5_text', label:'Что найдено в журналах'}
+  ]},
+  {n:6, title:'ПО / прошивка', items:[
+    {t:'check', key:'s6_done',    label:'Проверка ПО и аппаратного обеспечения'},
+    {t:'text',  key:'s6_version', label:'Версия ПО / прошивки, обновление'}
+  ]},
+  {n:7, title:'Проверка режимов работы', items:[
+    {t:'check', key:'s7_normal',     label:'Нормальный режим'},
+    {t:'check', key:'s7_battery',    label:'Режим работы от батарей'},
+    {t:'check', key:'s7_autobypass', label:'Автоматический байпас'},
+    {t:'check', key:'s7_manbypass',  label:'Механический байпас'},
+    {t:'check', key:'s7_transfer',   label:'Переключение bypass ↔ обратно (бесперебойность)'},
+    {t:'check', key:'s7_parallelNA', label:'Параллель/резерв — не применимо (отдельный ИБП)'},
+    {t:'check', key:'s7_loadBalance',label:'Баланс нагрузки между модулями'},
+    {t:'check', key:'s7_canbus',     label:'Статус CAN-шины синхронизации'}
+  ]},
+  {n:8, title:'Замеры входных / выходных параметров', items:[
+    {t:'phase', key:'s8_uin',  label:'Входное напряжение', unit:'В'},
+    {t:'phase', key:'s8_iin',  label:'Входной ток',        unit:'А'},
+    {t:'num',   key:'s8_fin',  label:'Частота входного напряжения', unit:'Гц'},
+    {t:'phase', key:'s8_uout', label:'Выходное напряжение', unit:'В'},
+    {t:'phase', key:'s8_iout', label:'Выходной ток',        unit:'А'},
+    {t:'num',   key:'s8_fout', label:'Частота выходного напряжения', unit:'Гц'}
+  ]},
+  {n:9, title:'Сверка показаний', items:[
+    {t:'status', key:'s9', label:'Расчёт vs индикация монитора ИБП / система мониторинга'}
+  ]},
+  {n:10, title:'Аккумуляторные батареи', items:[
+    {t:'status', key:'s10_mount',     label:'Крепление компонентов внутри батарейных модулей'},
+    {t:'num',    key:'s10_moduleV',   label:'Напряжение на батарейном модуле', unit:'В'},
+    {t:'cells',  key:'s10_cells',     label:'Элементы АКБ: напряжение и внутр. сопротивление'},
+    {t:'status', key:'s10_corrosion', label:'Коррозия / утечка электролита на клеммах'},
+    {t:'check',  key:'s10_adjust',    label:'Регулировка цепей измерения напряжения АКБ'},
+    {t:'num',    key:'s10_capacity',  label:'Остаточная ёмкость АКБ', unit:'%'}
+  ]},
+  {n:11, title:'Выпрямитель и зарядное устройство', items:[
+    {t:'check', key:'s11_nominal',  label:'Установка номинального напряжения основной сети'},
+    {t:'check', key:'s11_adjustUF', label:'Регулировка цепей измерения U/F основной сети'},
+    {t:'num',   key:'s11_chargeA',  label:'Ток заряда АКБ', unit:'А'},
+    {t:'num',   key:'s11_floatV',   label:'Напряжение поддерживающего заряда', unit:'В'}
+  ]},
+  {n:12, title:'Контрольный тест', items:[
+    {t:'status', key:'s12', label:'Реакция ИБП на пропадание входного напряжения'}
+  ]}
+];
+
+function toForEachItem(cb){ TO_SECTIONS.forEach(function(sec){ sec.items.forEach(function(it){ cb(it, sec); }); }); }
+function esc(s){ if(s===undefined||s===null) return ''; return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function dotClass(v){ return (v==='green'||v==='yellow'||v==='red') ? v : 'gray'; }
+function statusWord(v){ return v==='green'?'Норма':v==='yellow'?'Замечание':v==='red'?'Неисправность':'не отмечено'; }
+function getTo(u){ return (u&&u.to)||{}; }
+function statusSlot(u,key){ var s=getTo(u)[key]; return (s&&typeof s==='object')?s:{value:'',comment:''}; }
+
+function weakCellFlags(arr){
+  arr=arr||[]; var us=[],rs=[];
+  arr.forEach(function(c){ var u=parseFloat(c.u); if(!isNaN(u)) us.push(u); var r=parseFloat(c.r); if(!isNaN(r)) rs.push(r); });
+  var meanU=us.length?us.reduce(function(a,b){return a+b;},0)/us.length:null;
+  var meanR=rs.length?rs.reduce(function(a,b){return a+b;},0)/rs.length:null;
+  var flags=arr.map(function(c){
+    var u=parseFloat(c.u),r=parseFloat(c.r),weak=false;
+    if(meanU!==null&&us.length>=3&&!isNaN(u)&&u<meanU*0.97) weak=true;
+    if(meanR!==null&&rs.length>=3&&!isNaN(r)&&meanR>0&&r>meanR*1.30) weak=true;
+    return weak;
+  });
+  return {flags:flags,meanU:meanU,meanR:meanR};
+}
+function weakCellNumbers(arr){ var res=weakCellFlags(arr),out=[]; res.flags.forEach(function(w,i){ if(w) out.push(i+1); }); return out; }
+
+function unitVerdict(u){
+  var reds=0,yellows=0;
+  toForEachItem(function(it){ if(it.t==='status'){ var v=statusSlot(u,it.key).value; if(v==='red')reds++; else if(v==='yellow')yellows++; } });
+  var d=statusSlot(u,'defect').value; if(d==='red')reds++; else if(d==='yellow')yellows++;
+  var weak=weakCellNumbers(getTo(u).s10_cells||[]).length;
+  if(reds||weak) return {cls:'bad', text:'🔴 Есть неисправности'};
+  if(yellows) return {cls:'warn', text:'🟡 Есть замечания'};
+  return {cls:'ok', text:'🟢 Норма'};
+}
+
+function itemHtml(u,item){
+  var to=getTo(u);
+  if(item.t==='status'){
+    var s=statusSlot(u,item.key);
+    return '<div class="mstatus"><span class="dot '+dotClass(s.value)+'"></span><span class="nm">'+esc(item.label)+'</span>'+
+      '<span class="wd">'+statusWord(s.value)+'</span>'+(s.comment?'<span class="cm">'+esc(s.comment)+'</span>':'')+'</div>';
+  }
+  if(item.t==='num'){ var v=to[item.key]; var shown=(v===''||v===undefined||v===null)?'—':esc(v)+(item.unit?' '+item.unit:''); return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+shown+'</span></div>'; }
+  if(item.t==='text'){ var tv=to[item.key]; return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+(tv?esc(tv):'—')+'</span></div>'; }
+  if(item.t==='check'){ var on=!!to[item.key]; return '<div class="mcheck '+(on?'on':'off')+'"><span class="mk">'+(on?'✓':'—')+'</span><span>'+esc(item.label)+'</span></div>'; }
+  if(item.t==='phase'){
+    var arr=to[item.key]||['','',''];
+    var any=arr.some(function(x){return x!==''&&x!==undefined&&x!==null;});
+    var vals=any?('<span class="phase-vals">'+['L1','L2','L3'].map(function(ph,i){return '<span>'+ph+' <b>'+esc(arr[i]||'—')+'</b></span>';}).join('')+(item.unit?' '+item.unit:'')+'</span>'):'—';
+    return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+vals+'</span></div>';
+  }
+  if(item.t==='cells'){ return cellsHtml(to[item.key]||[]); }
+  return '';
+}
+function cellsHtml(arr){
+  if(!arr.length) return '<div class="mrow"><span class="mkey">Элементы АКБ</span><span class="mval">не заполнено</span></div>';
+  var res=weakCellFlags(arr);
+  var rows=arr.map(function(c,i){ var cls=res.flags[i]?' class="cell-weak"':''; return '<tr'+cls+'><td>'+(i+1)+'</td><td>'+esc(c.u||'—')+'</td><td>'+esc(c.r||'—')+'</td></tr>'; }).join('');
+  var weak=[]; res.flags.forEach(function(w,i){ if(w) weak.push(i+1); });
+  var stats='<div class="cells-stats">Элементов: '+arr.length+(res.meanU!==null?' · средн. U '+res.meanU.toFixed(2)+' В':'')+(res.meanR!==null?' · средн. R '+res.meanR.toFixed(1)+' мОм':'')+(weak.length?' · <span class="weak">слабые: №'+weak.join(', №')+'</span>':' · <span style="color:var(--green)">слабых нет</span>')+'</div>';
+  return '<div style="margin:6px 0;"><div class="mkey" style="margin-bottom:4px;">Элементы АКБ (U / внутр. сопротивление)</div>'+
+    '<table class="cells-table"><thead><tr><th>№</th><th>U, В</th><th>R, мОм</th></tr></thead><tbody>'+rows+'</tbody></table>'+stats+'</div>';
+}
+function unitSectionsHtml(u){
+  var sections=TO_SECTIONS.map(function(sec){ var items=sec.items.map(function(it){ return itemHtml(u,it); }).join(''); return '<div class="sec-title">'+sec.n+'. '+esc(sec.title)+'</div>'+items; }).join('');
+  var d=statusSlot(u,'defect');
+  var defect='<div class="sec-title">Выявленные неисправности</div><div class="mstatus"><span class="dot '+dotClass(d.value)+'"></span><span class="nm">Требуется замена / ремонт узлов</span><span class="wd">'+statusWord(d.value)+'</span>'+(d.comment?'<span class="cm">'+esc(d.comment)+'</span>':'')+'</div>';
+  return sections+defect;
+}
+
+function toggleVisit(id){
+  var b=document.getElementById(id); var a=document.getElementById(id+'_arr');
+  var open=b.classList.toggle('open'); if(a) a.textContent=open?'▾':'▸';
+}
+
+function getParam(name){
+  var m=new RegExp('[?&]'+name+'=([^&]*)').exec(location.search);
+  return m?decodeURIComponent(m[1].replace(/\+/g,' ')):'';
+}
+
+function render(data){
+  var c=document.getElementById('content');
+  var sn=data.serial||getParam('sn');
+  if(!data.visits || !data.visits.length){
+    c.innerHTML='<div class="id-card"><div class="big-label">ИБП</div><div class="model">'+(esc(data.model)||'—')+'</div>'+
+      (sn?'<div class="serial">S/N '+esc(sn)+'</div>':'')+'</div>'+
+      '<div class="msg">По этому ИБП записей о техническом обслуживании пока нет.<br><br>Если ТО проводилось — обратитесь в ERNES, возможно акт ещё не внесён.</div>';
+    return;
+  }
+  var v0=data.visits[0];
+  var idCard='<div class="id-card">'+
+    '<div class="big-label">Источник бесперебойного питания</div>'+
+    '<div class="model">'+(esc(data.model)||'ИБП')+'</div>'+
+    '<div class="serial">S/N '+esc(data.serial)+'</div>'+
+    (v0.address?'<div class="site">📍 '+esc(v0.address)+'</div>':'')+
+    '<div class="count">Проведено обслуживаний: '+data.visits.length+' · последнее: '+esc(v0.date)+'</div>'+
+  '</div>';
+
+  var visits=data.visits.map(function(v,i){
+    var vd=unitVerdict(v.unit);
+    var id='visit_'+i;
+    return '<div class="visit">'+
+      '<div class="visit-head" onclick="toggleVisit(\''+id+'\')">'+
+        '<span class="arrow" id="'+id+'_arr">▸</span>'+
+        '<span class="vdate">'+esc(v.date)+'</span>'+
+        '<span class="veng">инженер: '+esc(v.engineer||'ERNES')+' · '+esc(v.actNumber)+'</span>'+
+        '<span class="verdict '+vd.cls+'"><span class="'+vd.cls+'">'+vd.text+'</span></span>'+
+      '</div>'+
+      '<div class="visit-body" id="'+id+'">'+
+        unitSectionsHtml(v.unit)+
+        (v.conclusion?'<div class="sec-title">Заключение и рекомендации</div><div class="conclusion-box">'+esc(v.conclusion)+'</div>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  c.innerHTML=idCard+'<div class="section-title">История обслуживания</div>'+visits;
+  // раскрываем последний визит по умолчанию
+  toggleVisit('visit_0');
+}
+
+function load(){
+  var sn=getParam('sn');
+  var c=document.getElementById('content');
+  if(!sn){ c.innerHTML='<div class="msg">Не указан серийный номер ИБП в ссылке.</div>'; return; }
+  var url=APPS_SCRIPT_URL+'?action=getUpsCard&sn='+encodeURIComponent(sn);
+  fetch(url).then(function(r){ return r.json(); }).then(function(res){
+    if(!res.ok) throw new Error(res.error||'Ошибка сервера');
+    render(res.data);
+  }).catch(function(err){
+    c.innerHTML='<div class="msg">Не удалось загрузить данные: '+esc(err.message)+'<br><br>Проверьте интернет и обновите страницу.</div>';
+  });
+}
+
+load();
+</script>
+</body>
+</html>

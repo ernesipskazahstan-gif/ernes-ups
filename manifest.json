@@ -1,0 +1,15 @@
+{
+  "name": "ERNES — Диагностика и ТО ИБП",
+  "short_name": "ERNES ИБП",
+  "description": "Полевая форма экспресс-диагностики и техобслуживания ИБП с офлайн-режимом",
+  "start_url": "./audit-github.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1F4E79",
+  "theme_color": "#1F4E79",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
