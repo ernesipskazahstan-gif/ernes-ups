@@ -116,6 +116,12 @@
 
   /* ТО: числовые поля, фазы, сетка АКБ */
   .to-field{margin-bottom:10px;}
+  .to-item-wrap{border:1px solid #eee; border-radius:8px; padding:8px 10px; margin-bottom:10px;}
+  .to-item-wrap .to-field{margin-bottom:0;}
+  .to-item-wrap .toggle-row{padding:2px 0;}
+  .item-photo{margin-top:6px;}
+  .photo-mini{display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#888; background:#f5f5f5; border:1px dashed #bbb; padding:4px 10px; border-radius:14px; cursor:pointer;}
+  .item-photo .thumbs img{width:48px; height:48px;}
   .phase-row{display:flex; gap:8px;}
   .phase-cell{flex:1; text-align:center;}
   .phase-cell span{display:block; font-size:11px; color:#888; font-weight:700; margin-bottom:2px;}
@@ -419,10 +425,7 @@ var TO_SECTIONS = [
     {t:'phase', key:'s8_iout', label:'Выходной ток',        unit:'А'},
     {t:'num',   key:'s8_fout', label:'Частота выходного напряжения', unit:'Гц'}
   ]},
-  {n:9, title:'Сверка показаний', items:[
-    {t:'status', key:'s9', label:'Расчёт vs индикация монитора ИБП / система мониторинга'}
-  ]},
-  {n:10, title:'Аккумуляторные батареи', items:[
+  {n:9, title:'Аккумуляторные батареи', items:[
     {t:'status', key:'s10_mount',     label:'Крепление компонентов внутри батарейных модулей'},
     {t:'num',    key:'s10_moduleV',   label:'Напряжение на батарейном модуле', unit:'В'},
     {t:'cells',  key:'s10_cells',     label:'Элементы АКБ: напряжение и внутр. сопротивление'},
@@ -430,13 +433,13 @@ var TO_SECTIONS = [
     {t:'check',  key:'s10_adjust',    label:'Регулировка цепей измерения напряжения АКБ'},
     {t:'num',    key:'s10_capacity',  label:'Остаточная ёмкость АКБ', unit:'%'}
   ]},
-  {n:11, title:'Выпрямитель и зарядное устройство', items:[
+  {n:10, title:'Выпрямитель и зарядное устройство', items:[
     {t:'check', key:'s11_nominal',  label:'Установка номинального напряжения основной сети'},
     {t:'check', key:'s11_adjustUF', label:'Регулировка цепей измерения U/F основной сети'},
     {t:'num',   key:'s11_chargeA',  label:'Ток заряда АКБ', unit:'А'},
     {t:'num',   key:'s11_floatV',   label:'Напряжение поддерживающего заряда', unit:'В'}
   ]},
-  {n:12, title:'Контрольный тест', items:[
+  {n:11, title:'Контрольный тест', items:[
     {t:'status', key:'s12', label:'Реакция ИБП на пропадание входного напряжения'}
   ]}
 ];
@@ -664,18 +667,21 @@ function renderToItem(idx, item){
   var kq = '\''+item.key+'\'';
   if(item.t === 'status') return toStatusHtml(idx, item);
   if(item.t === 'num'){
-    return '<div class="to-field"><label>'+item.label+(item.unit?' , '+item.unit:'')+'</label>'+
-      '<input type="number" step="any" value="'+esc(v)+'" oninput="state.units['+idx+'].to['+kq+']=this.value"></div>';
+    return wrapToItem(idx, item,
+      '<div class="to-field"><label>'+item.label+(item.unit?' , '+item.unit:'')+'</label>'+
+      '<input type="number" step="any" value="'+esc(v)+'" oninput="state.units['+idx+'].to['+kq+']=this.value"></div>');
   }
   if(item.t === 'text'){
-    return '<div class="to-field"><label>'+item.label+'</label><div class="mic-row">'+
+    return wrapToItem(idx, item,
+      '<div class="to-field"><label>'+item.label+'</label><div class="mic-row">'+
       '<textarea id="totext_'+idx+'_'+item.key+'" oninput="state.units['+idx+'].to['+kq+']=this.value">'+esc(v)+'</textarea>'+
-      '<button type="button" class="mic-btn" onclick="toggleMic(this, \'totext_'+idx+'_'+item.key+'\')">🎤</button></div></div>';
+      '<button type="button" class="mic-btn" onclick="toggleMic(this, \'totext_'+idx+'_'+item.key+'\')">🎤</button></div></div>');
   }
   if(item.t === 'check'){
-    return '<div class="toggle-row">'+
+    return wrapToItem(idx, item,
+      '<div class="toggle-row">'+
       '<input type="checkbox" id="tochk_'+idx+'_'+item.key+'" '+(v?'checked':'')+' onchange="state.units['+idx+'].to['+kq+']=this.checked">'+
-      '<label for="tochk_'+idx+'_'+item.key+'">'+item.label+'</label></div>';
+      '<label for="tochk_'+idx+'_'+item.key+'">'+item.label+'</label></div>');
   }
   if(item.t === 'phase'){
     var cells = ['L1','L2','L3'].map(function(ph, pi){
@@ -688,11 +694,22 @@ function renderToItem(idx, item){
   return '';
 }
 
+// Кнопка фото «по желанию» для пунктов num/text/check (у phase и cells фото не нужно).
+// Оборачивает пункт в .to-item-wrap, чтобы фото легло именно в его превью.
+function toItemPhotoHtml(idx, item){
+  var group = 'ИБП #'+(idx+1)+'/'+item.label;
+  return '<div class="item-photo">'+
+    '<label class="photo-mini">📷 фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\''+group+'\')"></label>'+
+    '<div class="thumbs" id="tophoto_'+idx+'_'+item.key+'"></div>'+
+  '</div>';
+}
+function wrapToItem(idx, item, innerHtml){
+  return '<div class="to-item-wrap">'+innerHtml+toItemPhotoHtml(idx, item)+'</div>';
+}
+
 function toStatusHtml(idx, item){
   var s = state.units[idx].to[item.key];
-  var photoBtn = item.photo
-    ? '<label class="photo-btn">📷 Фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/'+item.label+'\')"></label><div class="thumbs" id="tothumbs_'+idx+'_'+item.key+'"></div>'
-    : '';
+  var photoBtn = '<label class="photo-btn">📷 Фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/'+item.label+'\')"></label><div class="thumbs" id="tothumbs_'+idx+'_'+item.key+'"></div>';
   return ''+
   '<div class="status-item">'+
     '<div class="item-title">'+item.label+'</div>'+
@@ -976,7 +993,7 @@ function handleGroupPhoto(evt, group){
   var file = evt.target.files[0];
   if(!file) return;
   var thumbsEl = null;
-  var parent = evt.target.closest('.status-item, .sub-card, .card');
+  var parent = evt.target.closest('.to-item-wrap, .status-item, .sub-card, .card');
   if(parent){ thumbsEl = parent.querySelector('.thumbs'); }
   storePhotoLocal(file, group, thumbsEl);
   evt.target.value = ''; // позволяем снять то же место повторно
