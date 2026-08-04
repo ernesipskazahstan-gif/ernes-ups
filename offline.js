@@ -177,8 +177,10 @@ var ErnesOffline = (function () {
       r.readAsDataURL(blob);
     });
   }
-  function callPost(action, data, timeoutMs) {
+  function callPost(action, data, timeoutMs, attempt) {
     if (!endpoint) return Promise.reject(new Error('endpoint не задан'));
+    attempt = attempt || 0;
+    var MAX = 2;
     var body = Object.assign({ action: action }, data || {});
     var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, timeoutMs || 45000) : null;
@@ -187,8 +189,21 @@ var ErnesOffline = (function () {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body),
       signal: ctrl ? ctrl.signal : undefined
-    }).then(function (r) { return r.json(); }).then(function (res) {
+    }).then(function (r) { return r.text(); }).then(function (text) {
       if (timer) clearTimeout(timer);
+      var t = (text || '').trim();
+      var res;
+      try {
+        res = JSON.parse(t);
+      } catch (e) {
+        // Apps Script вернул HTML (редирект/временная ошибка) вместо JSON — повторим.
+        var looksHtml = t.charAt(0) === '<' || t.indexOf('<!DOCTYPE') !== -1 || t.indexOf('<html') !== -1;
+        if (looksHtml && attempt < MAX) {
+          return new Promise(function (r) { setTimeout(r, 800 * (attempt + 1)); })
+            .then(function () { return callPost(action, data, timeoutMs, attempt + 1); });
+        }
+        throw new Error('сервер вернул не JSON');
+      }
       if (!res.ok) throw new Error(res.error || 'Ошибка сервера');
       return res.data;
     }, function (err) {
