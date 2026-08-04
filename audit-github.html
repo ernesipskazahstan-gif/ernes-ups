@@ -966,27 +966,53 @@ function esc(s){
 // Фото больше не грузятся в Drive сразу — они копятся локально под черновиком
 // (state.localId) с тегом группы. При синхронизации sync-движок создаёт папку
 // визита и заливает всё пачкой по группам.
+// Сжимает фото на клиенте перед хранением: длинная сторона до 1600 px,
+// JPEG качество 0.7 — в 10–20 раз меньше (память телефона, скорость
+// синхронизации, объём в Drive), читаемость серийников сохраняется.
+// При сбое возвращает исходный файл, чтобы не потерять кадр.
+function compressImage(file, maxDim, quality){
+  maxDim = maxDim || 1600; quality = quality || 0.7;
+  return new Promise(function(resolve){
+    if(!file || !/^image\//.test(file.type) || typeof createImageBitmap === 'undefined'){
+      resolve(file); return;
+    }
+    createImageBitmap(file).then(function(bmp){
+      var w = bmp.width, h = bmp.height;
+      var scale = Math.min(1, maxDim / Math.max(w, h));
+      var nw = Math.round(w * scale), nh = Math.round(h * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = nw; canvas.height = nh;
+      canvas.getContext('2d').drawImage(bmp, 0, 0, nw, nh);
+      if(bmp.close) bmp.close();
+      canvas.toBlob(function(blob){
+        resolve((blob && blob.size < file.size) ? blob : file);
+      }, 'image/jpeg', quality);
+    }).catch(function(){ resolve(file); });
+  });
+}
+
 function storePhotoLocal(file, group, thumbsEl){
   ensureDraftId();
-  ErnesOffline.addPhoto(state.localId, group, file, file.type || 'image/jpeg', null)
-    .then(function(rec){
-      if(thumbsEl){
-        var img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        img.setAttribute('data-photo-id', rec.photoId);
-        img.title = 'Нажмите, чтобы удалить это фото';
-        img.style.cursor = 'pointer';
-        img.onclick = function(){
-          if(confirm('Удалить это фото?')){
-            ErnesOffline.deletePhoto(rec.photoId);
-            img.remove();
-          }
-        };
-        thumbsEl.appendChild(img);
-      }
-      persistDraft(); // фиксируем черновик, чтобы фото не осиротело
-    })
-    .catch(function(err){ alert('Не удалось сохранить фото локально: ' + err.message); });
+  compressImage(file, 1600, 0.7).then(function(blob){
+    return ErnesOffline.addPhoto(state.localId, group, blob, 'image/jpeg', null)
+      .then(function(rec){
+        if(thumbsEl){
+          var img = document.createElement('img');
+          img.src = URL.createObjectURL(blob);
+          img.setAttribute('data-photo-id', rec.photoId);
+          img.title = 'Нажмите, чтобы удалить это фото';
+          img.style.cursor = 'pointer';
+          img.onclick = function(){
+            if(confirm('Удалить это фото?')){
+              ErnesOffline.deletePhoto(rec.photoId);
+              img.remove();
+            }
+          };
+          thumbsEl.appendChild(img);
+        }
+        persistDraft();
+      });
+  }).catch(function(err){ alert('Не удалось сохранить фото локально: ' + err.message); });
 }
 
 function handleGroupPhoto(evt, group){
@@ -1234,7 +1260,7 @@ function buildToSummary(){
 
 function renderSummaryRows(rows){
   var html = rows.map(function(r){
-    return '<div class="summary-row"><span>'+r[0]+'</span><b>'+(r[1]||'—')+'</b></div>';
+    return '<div class="summary-row"><span>'+esc(r[0])+'</span><b>'+(esc(r[1])||'—')+'</b></div>';
   }).join('');
   document.getElementById('summaryBox').innerHTML = html;
 }
@@ -1579,6 +1605,21 @@ window.addEventListener('online', function(){ updateNetIndicator(); refreshDraft
 window.addEventListener('offline', updateNetIndicator);
 
 ErnesOffline.onChange(function(){ refreshDraftsBadge(); });
+
+// Автосохранение черновика: debounce на любой ввод + сохранение при сворачивании/
+// закрытии вкладки. Защищает от потери данных, если браузер убьёт вкладку посреди
+// заполнения (лист ТО длинный — иначе терялось бы всё, что на текущем шаге).
+var _autosaveTimer = null;
+function scheduleAutosave(){
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(persistDraft, 1200);
+}
+document.addEventListener('input', scheduleAutosave, true);
+document.addEventListener('change', scheduleAutosave, true);
+window.addEventListener('pagehide', function(){ persistDraft(); });
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden') persistDraft();
+});
 
 // Стартовая инициализация офлайна
 ensureDraftId();
