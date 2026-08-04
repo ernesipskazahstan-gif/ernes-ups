@@ -153,12 +153,12 @@
   .pdocno{text-align:right;}
   .pdocno .num{font-weight:800; font-size:14px; color:#1F4E79; white-space:nowrap;}
   .pdocno .date{display:inline-block; margin-top:7px; color:#3CB043; font-weight:600; font-size:12.5px; border-bottom:2px solid #3CB043; padding:3px 0 5px;}
-  .phero{display:grid; grid-template-columns:1fr 200px; gap:14px; align-items:center; margin-top:10px;}
-  .ptitle{font-size:25px; line-height:1.08; font-weight:900; color:#1F4E79; margin:0; text-transform:uppercase;}
+  .phero{display:grid; grid-template-columns:1fr 255px; gap:14px; align-items:center; margin-top:10px; min-height:190px;}
+  .ptitle{font-size:25px; line-height:1.08; font-weight:900; color:#0F2438; margin:0; text-transform:uppercase;}
   .ptitle span{display:block; color:#3CB043;}
   .paccent{width:26px; height:2px; background:#3CB043; margin:8px 0;}
   .pintro{font-size:11px; line-height:1.42; color:#333; max-width:330px; margin:2px 0 10px;}
-  .phero-img{width:100%; max-width:190px; height:auto; display:block; margin:0 auto;}
+  .phero-img{width:100%; max-width:255px; height:auto; display:block; margin:0 auto;}
   .pcontent{padding:16px 26px 0;}
   .pcontent-nohead{padding-top:26px;}
   .psection{margin-bottom:16px;}
@@ -168,7 +168,10 @@
   .pinfo-item .lbl{color:#888; font-size:9px; text-transform:uppercase;}
   .pinfo-item .val{font-weight:600;}
   .punit{border:1px solid #e6e6e6; border-radius:6px; margin-bottom:10px; overflow:hidden; page-break-inside:avoid;}
-  .punit-title{background:#1F4E79; color:#fff; font-size:11px; font-weight:700; padding:5px 10px;}
+  .punit-title{display:flex; align-items:center; justify-content:space-between; gap:10px; background:#FFF4D6; color:#1F4E79; font-size:11px; font-weight:700; padding:6px 10px; border-bottom:1px solid #F2B705;}
+  .punit-title .pdots{display:flex; gap:3px; flex-shrink:0;}
+  .punit-title .pdot{width:7px; height:7px; border-radius:50%; background:#ccc;}
+  .punit-title .pdot.green{background:#3CB043;}.punit-title .pdot.yellow{background:#E0A800;}.punit-title .pdot.red{background:#D9362B;}
   .punit-body{display:grid; grid-template-columns:1.1fr 1fr;}
   .punit-info{padding:8px 10px; font-size:11px; border-right:1px solid #eee;}
   .punit-info .row{display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px dotted #eee;}
@@ -1038,6 +1041,9 @@ function renderPrintTemplate(act, photoGroups, withPhotos){
 
   var unitsHtml = units.length ? units.map(function(u, i){
     var unitPhotos = withPhotos ? photoGroups.filter(function(g){ return unitIndexFromGroup(g.group) === (i+1); }) : [];
+    var headerDots = STATUS_ITEMS.map(function(item){
+      return '<span class="pdot ' + statusClass(u.statuses ? u.statuses[item.key] : '') + '"></span>';
+    }).join('');
     var statusHtml = STATUS_ITEMS.map(function(item){
       var raw = u.statuses ? u.statuses[item.key] : '';
       var cmt = statusComment(raw);
@@ -1045,7 +1051,7 @@ function renderPrintTemplate(act, photoGroups, withPhotos){
         '<div class="txt"><b>' + item.title + '</b>' + (cmt ? '<span>' + esc(cmt) + '</span>' : '<span>' + esc(statusLabelWord(raw) || 'не отмечено') + '</span>') + '</div></div>';
     }).join('');
     return '<div class="punit">'+
-      '<div class="punit-title">ИБП #' + (i+1) + (u.model ? ' — ' + esc(u.model) : '') + '</div>'+
+      '<div class="punit-title"><span>ИБП #' + (i+1) + (u.model ? ' — ' + esc(u.model) : '') + (u.serial ? ' (' + esc(u.serial) + ')' : '') + '</span><span class="pdots" aria-label="Статусы систем">' + headerDots + '</span></div>'+
       '<div class="punit-body">'+
         '<div class="punit-info">'+
           pRow('Серийный №', u.serial) +
@@ -1088,11 +1094,11 @@ function renderPrintTemplate(act, photoGroups, withPhotos){
         '</div>'+
         '<div class="phero">'+
           '<div>'+
-            '<div class="ptitle">Акт экспресс<span>диагностики ИБП</span></div>'+
+            '<div class="ptitle">Акт аудита<span>системы бесперебойного питания</span></div>'+
             '<div class="paccent"></div>'+
-            '<div class="pintro">ТОО «ERNES INDUSTRIAL POWER SYSTEMS» по итогам выездной диагностики оборудования сообщает нижеследующее.</div>'+
+            '<div class="pintro">Отчёт по итогам выездной диагностики: состояние оборудования, выявленные замечания и рекомендации по дальнейшей эксплуатации.</div>'+
           '</div>'+
-          '<img class="phero-img" src="data:image/png;base64,' + UPS_MAIN_B64 + '">'+
+          '<img class="phero-img" src="audit-ups-hero.png" alt="Источник бесперебойного питания">'+
         '</div>'+
       '</div>'+
       '<div class="pcontent">'+
