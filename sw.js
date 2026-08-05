@@ -10,7 +10,7 @@
  *  - миниатюры Drive — runtime cache (появляются офлайн, если раньше открывались).
  * Запросы к Apps Script (данные) НИКОГДА не кэшируются — только сеть.
  */
-var CACHE = 'ernes-field-v1';
+var CACHE = 'ernes-field-v5';
 
 var SHELL = [
   './audit-github.html',
@@ -68,8 +68,22 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // Оболочка (свой origin) — cache-first, в фоне обновляем.
+  // Оболочка (свой origin).
   if (url.origin === self.location.origin) {
+    var isPage = req.mode === 'navigate' || /\.html($|\?)/.test(url.pathname) || url.pathname.endsWith('/');
+    if (isPage) {
+      // Страницы (HTML) — network-first: при наличии сети всегда свежая версия,
+      // из кэша — только когда офлайн. Так обновление применяется сразу.
+      e.respondWith(
+        fetch(req).then(function (resp) {
+          var copy = resp.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); });
+          return resp;
+        }).catch(function () { return caches.match(req); })
+      );
+      return;
+    }
+    // Остальное своё (js, png, json) — cache-first с фоновым обновлением.
     e.respondWith(
       caches.match(req).then(function (hit) {
         var net = fetch(req).then(function (resp) {
