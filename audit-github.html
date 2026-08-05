@@ -381,7 +381,7 @@
 // ВСТАВЬ СЮДА ту же ссылку .../exec из Apps Script
 // Номер версии приложения. Меняется при каждом релизе — виден в шапке,
 // чтобы сразу понимать, обновилось ли приложение (не висит ли старый кэш).
-var APP_VERSION = 'v5 · 05.08.2026';
+var APP_VERSION = 'v6 · 05.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
 
 function callBackend(action, data){
@@ -1675,7 +1675,8 @@ function renderDraftsList(){
   var net = document.getElementById('draftsNet');
   net.textContent = navigator.onLine ? 'Сеть есть — можно синхронизировать.' : 'Офлайн — синхронизация начнётся при появлении сети.';
   var syncBtn = document.getElementById('syncAllBtn');
-  syncBtn.disabled = !navigator.onLine || ErnesOffline.isSyncing();
+  // Кнопка активна, если онлайн и синхронизация либо не идёт, либо зависла (>3 мин)
+  syncBtn.disabled = !navigator.onLine || (ErnesOffline.isSyncing() && !ErnesOffline.isSyncStale());
 
   ErnesOffline.allDrafts().then(function(list){
     var box = document.getElementById('draftsList');
@@ -1688,6 +1689,11 @@ function renderDraftsList(){
           var modeLabel = d.mode === 'to' ? '🔧 ТО' : '⚡ Диагностика';
           var when = new Date(d.createdAt || Date.now()).toLocaleString('ru-RU');
           var num = d.serverActNumber ? ' · ' + d.serverActNumber : '';
+          // Прогресс отправки фото
+          var progress = '';
+          if(d.status === 'syncing' && d.syncProgress && d.syncProgress.total){
+            progress = '<div class="di-meta" style="color:#1e40af;">Отправка фото: ' + d.syncProgress.done + ' / ' + d.syncProgress.total + '</div>';
+          }
           var actions = '';
           if(d.status === 'draft'){
             actions += '<button class="di-cont" onclick="continueDraft(\'' + d.localId + '\')">▶ Продолжить</button>';
@@ -1699,6 +1705,7 @@ function renderDraftsList(){
           return '<div class="draft-item">'+
             '<div class="di-top"><span class="di-client">' + escapeHtml(client) + '</span>' + statusPill(d.status) + '</div>'+
             '<div class="di-meta">' + modeLabel + num + ' · ' + when + ' · фото: ' + (d._photos||0) + '</div>'+
+            progress+
             (d.error ? '<div class="di-meta" style="color:#D9362B;">' + escapeHtml(d.error) + '</div>' : '')+
             '<div class="di-actions">' + actions + '</div>'+
           '</div>';
@@ -1782,7 +1789,12 @@ if('serviceWorker' in navigator){
 window.addEventListener('online', function(){ updateNetIndicator(); refreshDraftsBadge(); });
 window.addEventListener('offline', updateNetIndicator);
 
-ErnesOffline.onChange(function(){ refreshDraftsBadge(); });
+ErnesOffline.onChange(function(){
+  refreshDraftsBadge();
+  // если окно черновиков открыто — обновляем список (прогресс фото вживую)
+  var ov = document.getElementById('draftsOverlay');
+  if(ov && ov.classList.contains('show')) renderDraftsList();
+});
 
 // Автосохранение черновика: debounce на любой ввод + сохранение при сворачивании/
 // закрытии вкладки. Защищает от потери данных, если браузер убьёт вкладку посреди
