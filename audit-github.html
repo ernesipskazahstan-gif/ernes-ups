@@ -234,7 +234,7 @@
 <header>
   <div>
     <div class="title" id="headerTitle">⚡ Экспресс-диагностика ИБП</div>
-    <div class="act-num" id="actNumLabel"><span class="net-dot net-online" id="netDot"></span><span id="netText">онлайн</span></div>
+    <div class="act-num" id="actNumLabel"><span class="net-dot net-online" id="netDot"></span><span id="netText">онлайн</span> · <span id="appVer"></span></div>
   </div>
   <div class="header-right">
     <button class="drafts-btn" id="draftsBtn" onclick="openDrafts()">🗂 Черновики<span class="badge" id="draftsBadge" style="display:none;">0</span></button>
@@ -379,6 +379,9 @@
 
 <script>
 // ВСТАВЬ СЮДА ту же ссылку .../exec из Apps Script
+// Номер версии приложения. Меняется при каждом релизе — виден в шапке,
+// чтобы сразу понимать, обновилось ли приложение (не висит ли старый кэш).
+var APP_VERSION = 'v5 · 05.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
 
 function callBackend(action, data){
@@ -1517,35 +1520,19 @@ function finalizeAndQueue(){
 
   ErnesOffline.finalizeDraft(state.localId, state.mode, snapshot, payload)
     .then(function(){
-      // Пытаемся сразу отправить, если есть сеть; иначе останется в очереди.
-      return ErnesOffline.trySync();
-    })
-    .then(function(){
-      return ErnesOffline.getDraft(state.localId);
-    })
-    .then(function(d){
+      // Сразу показываем «сохранено» и разрешаем начать новый акт — отправка идёт
+      // в ФОНЕ, не блокируя интерфейс (важно при слабой сети и многих фото).
       document.getElementById('spinner').style.display = 'none';
       var scr = document.getElementById('successScreen');
-      var title = document.getElementById('successTitle');
-      var num = document.getElementById('successActNum');
-      var hint = document.getElementById('successHint');
-      if(d && d.status === 'done'){
-        title.textContent = '✅ Акт отправлен';
-        num.textContent = d.serverActNumber || '';
-        hint.textContent = 'Записан в журнал, фото — в папку Drive по группам.';
-      } else if(d && d.status === 'error'){
-        title.textContent = '💾 Сохранён локально (ошибка отправки)';
-        num.textContent = '';
-        hint.textContent = 'Акт в очереди. ' + (d.error ? 'Причина: ' + d.error + '. ' : '') + 'Отправится при следующей синхронизации.';
-      } else {
-        title.textContent = navigator.onLine ? '💾 Сохранён, отправляется...' : '📴 Сохранён офлайн';
-        num.textContent = '';
-        hint.textContent = navigator.onLine
-          ? 'Акт в очереди — синхронизация идёт. № акта присвоится сервером.'
-          : 'Акт лежит на телефоне и уйдёт на сервер, когда появится интернет. № акта присвоится при отправке.';
-      }
+      document.getElementById('successTitle').textContent = navigator.onLine ? '✅ Акт сохранён' : '📴 Сохранён офлайн';
+      document.getElementById('successActNum').textContent = '';
+      document.getElementById('successHint').textContent = navigator.onLine
+        ? 'Отправляется в фоне — можно сразу начинать следующий акт. № акта присвоится сервером, статус смотрите в 🗂 Черновики.'
+        : 'Лежит на телефоне, уйдёт при появлении сети. Можно сразу делать следующий акт.';
       scr.style.display = 'block';
       refreshDraftsBadge();
+      // Фоновая синхронизация (не ждём её для UI)
+      ErnesOffline.trySync().then(refreshDraftsBadge).catch(function(){});
     })
     .catch(function(err){
       document.getElementById('spinner').style.display = 'none';
@@ -1813,6 +1800,7 @@ document.addEventListener('visibilitychange', function(){
 });
 
 // Стартовая инициализация офлайна
+var _av = document.getElementById('appVer'); if(_av) _av.textContent = APP_VERSION;
 ensureDraftId();
 updateNetIndicator();
 refreshDraftsBadge();
