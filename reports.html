@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ERNES — Журнал актов (Диагностика / ТО)</title>
-<script src="logos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
   :root{
@@ -178,7 +177,7 @@
   .pov-stats{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #eee;}
   .pov-stat{text-align:center; background:#f7f9fb; border-radius:8px; padding:8px 4px;}
   .pov-stat .v{font-size:18px; font-weight:800; color:#1F4E79;}
-  .pov-stat .l{font-size:9px; color:#777; margin-top:2px;}
+  .pov-stat .l{font-size:10.5px; color:#555; margin-top:3px; font-weight:600;}
   .psection-head{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; color:#1F4E79; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #FFF4D6; padding-bottom:5px; margin-bottom:8px;}
   .pinfo-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 20px; font-size:12px;}
   .pinfo-item{padding:4px 0; border-bottom:1px solid #f0f0f0;}
@@ -310,7 +309,7 @@
 <header>
   <div>
     <h1 id="journalTitle">📋 Журнал актов</h1>
-    <div class="sub">ERNES INDUSTRIAL POWER SYSTEMS</div>
+    <div class="sub">ERNES INDUSTRIAL POWER SYSTEMS · <span id="appVer"></span></div>
   </div>
 </header>
 
@@ -353,7 +352,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">journal: + расширенная сводка (выводы, замечания, статистика)</div>
+<div class="build-version">v5: версия в UI + network-first + фоновая отправка</div>
 
 
 <script>
@@ -363,7 +362,9 @@
 
 /* FINAL_PAGE_B64 → logos.js */
 
+var APP_VERSION = 'v5 · 05.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
+(function(){ var e=document.getElementById('appVer'); if(e) e.textContent = APP_VERSION; })();
 
 var allActs = [];
 var allActsTO = [];
@@ -1026,7 +1027,27 @@ function waitImagesThenPrint(container, maxMs){
   setTimeout(finish, maxMs || 8000);
 }
 
+// Ленивая загрузка логотипов (logos.js ~2.9 МБ) — только когда реально нужны
+// (печать/наклейка), чтобы журнал открывался быстро.
+var _logosPromise = null;
+function ensureLogos(){
+  if(typeof LOGO_B64 !== 'undefined') return Promise.resolve();
+  if(_logosPromise) return _logosPromise;
+  _logosPromise = new Promise(function(resolve, reject){
+    var s = document.createElement('script');
+    s.src = 'logos.js';
+    s.onload = function(){ resolve(); };
+    s.onerror = function(){ _logosPromise = null; reject(new Error('Не удалось загрузить логотипы')); };
+    document.head.appendChild(s);
+  });
+  return _logosPromise;
+}
+
 function printAct(){
+  ensureLogos().then(function(){ printActInner(); })
+    .catch(function(err){ alert(err.message + '. Проверьте, что logos.js лежит рядом с reports.html.'); });
+}
+function printActInner(){
   var act = currentAct;
   var cb = document.getElementById('printPhotos');
   var withPhotos = cb ? cb.checked : true;
@@ -1645,6 +1666,10 @@ function renderPrintTemplateTO(act, photoGroups, withPhotos){
     '</div>';
 }
 function printActTO(){
+  ensureLogos().then(function(){ printActTOInner(); })
+    .catch(function(err){ alert(err.message + '. Проверьте, что logos.js лежит рядом с reports.html.'); });
+}
+function printActTOInner(){
   var act=currentAct;
   var cb=document.getElementById('printPhotos');
   var withPhotos=cb?cb.checked:true;
@@ -1702,6 +1727,9 @@ function qrDataUrl(text, cell){
 var _labelCtx = null; // {serial, model, url, img}
 
 function makeLabel(unitIdx){
+  ensureLogos().then(function(){ makeLabelInner(unitIdx); }).catch(function(){ makeLabelInner(unitIdx); });
+}
+function makeLabelInner(unitIdx){
   var units = safeParse(currentAct.unitsJson, []);
   var u = units[unitIdx];
   if(!u || !u.serial){ alert('У этого ИБП не указан серийный № — QR-наклейку не создать.'); return; }
