@@ -180,6 +180,25 @@ var ErnesOffline = (function () {
       r.readAsDataURL(blob);
     });
   }
+
+  // Сжимает крупное фото прямо перед отправкой (для актов, снятых старой версией
+  // без сжатия): длинная сторона до 1600 px, JPEG 0.7. Уже маленькие не трогает.
+  // Так застрявшие акты с тяжёлыми фото можно дослать, ничего не переснимая.
+  function compressBlob(blob, maxDim, quality) {
+    maxDim = maxDim || 1600; quality = quality || 0.7;
+    return new Promise(function (resolve) {
+      if (!blob || !/^image\//.test(blob.type || 'image/jpeg') || typeof createImageBitmap === 'undefined' || typeof document === 'undefined') { resolve(blob); return; }
+      if (blob.size < 700 * 1024) { resolve(blob); return; } // уже небольшое
+      createImageBitmap(blob).then(function (bmp) {
+        var w = bmp.width, h = bmp.height, scale = Math.min(1, maxDim / Math.max(w, h));
+        var nw = Math.round(w * scale), nh = Math.round(h * scale);
+        var c = document.createElement('canvas'); c.width = nw; c.height = nh;
+        c.getContext('2d').drawImage(bmp, 0, 0, nw, nh);
+        if (bmp.close) bmp.close();
+        c.toBlob(function (out) { resolve((out && out.size < blob.size) ? out : blob); }, 'image/jpeg', quality);
+      }).catch(function () { resolve(blob); });
+    });
+  }
   function callPost(action, data, timeoutMs, attempt) {
     if (!endpoint) return Promise.reject(new Error('endpoint не задан'));
     attempt = attempt || 0;
@@ -237,7 +256,17 @@ var ErnesOffline = (function () {
         var chain = putDraft(d);
         pending.forEach(function (p) {
           chain = chain.then(function () {
-            return blobToB64(p.blob).then(function (b64) {
+            // Сжимаем крупное фото перед отправкой и сохраняем уменьшенную версию
+            // (чтобы при повторе не сжимать заново). Мелкие остаются как есть.
+            return compressBlob(p.blob).then(function (small) {
+              if (small && small !== p.blob && small.size < p.blob.size) {
+                p.blob = small; p.mime = 'image/jpeg';
+                return savePhoto(p).then(function () { return p.blob; });
+              }
+              return p.blob;
+            }).then(function (blob) {
+              return blobToB64(blob);
+            }).then(function (b64) {
               return callPost('uploadPhoto', {
                 base64: b64, fileName: p.fileName, folderId: d.sync.folderId, mimeType: p.mime, group: p.group
               }, 90000).then(function (pr) {
