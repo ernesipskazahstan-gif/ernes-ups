@@ -24,6 +24,9 @@ var ErnesOffline = (function () {
   var endpoint = null;      // URL Apps Script (.../exec)
   var dbPromise = null;
   var isSyncing = false;
+  var _syncStartedAt = 0;
+  var STALE_MS = 180000; // 3 мин — после этого зависшую синхронизацию можно перезапустить
+  function isSyncStale(){ return isSyncing && (Date.now() - _syncStartedAt > STALE_MS); }
   var changeCb = null;      // форма подписывается для обновления бейджа/списка
 
   function setEndpoint(url) { endpoint = url; }
@@ -226,18 +229,22 @@ var ErnesOffline = (function () {
         });
       }
     }).then(function () {
-      // 2) фото пачкой (только не загруженные)
+      // 2) фото пачкой (только не загруженные) — с прогрессом для UI
       return getPhotos(d.localId).then(function (photos) {
-        var chain = Promise.resolve();
-        photos.forEach(function (p) {
-          if (p.uploaded) return;
+        var pending = photos.filter(function (p) { return !p.uploaded; });
+        var total = pending.length, done = 0;
+        d.syncProgress = { done: 0, total: total };
+        var chain = putDraft(d);
+        pending.forEach(function (p) {
           chain = chain.then(function () {
             return blobToB64(p.blob).then(function (b64) {
               return callPost('uploadPhoto', {
                 base64: b64, fileName: p.fileName, folderId: d.sync.folderId, mimeType: p.mime, group: p.group
               }, 90000).then(function (pr) {
                 p.uploaded = true; p.driveFileId = pr.fileId;
-                return savePhoto(p);
+                done++;
+                d.syncProgress = { done: done, total: total };
+                return savePhoto(p).then(function () { return putDraft(d); });
               });
             });
           });
@@ -280,10 +287,12 @@ var ErnesOffline = (function () {
   }
 
   // Синхронизирует все pending/error по очереди (последовательно).
+  // Если предыдущая синхронизация зависла (>3 мин) — считаем её мёртвой и
+  // запускаем заново (иначе isSyncing блокировал бы всё навсегда).
   function syncAll() {
-    if (isSyncing) return Promise.resolve({ skipped: true });
+    if (isSyncing && !isSyncStale()) return Promise.resolve({ skipped: true });
     if (!navigator.onLine) return Promise.resolve({ offline: true });
-    isSyncing = true;
+    isSyncing = true; _syncStartedAt = Date.now();
     return reclaimStuck().then(allDrafts).then(function (list) {
       var queue = list.filter(function (d) { return d.status === 'pending' || d.status === 'error'; });
       var okCount = 0, failCount = 0;
@@ -303,7 +312,8 @@ var ErnesOffline = (function () {
 
   // Пытается синхронизировать, если онлайн и не занято (для авто-триггеров).
   function trySync() {
-    if (!navigator.onLine || isSyncing) return Promise.resolve(null);
+    if (!navigator.onLine) return Promise.resolve(null);
+    if (isSyncing && !isSyncStale()) return Promise.resolve(null);
     return syncAll();
   }
 
@@ -328,6 +338,7 @@ var ErnesOffline = (function () {
     photoCount: photoCount,
     syncAll: syncAll,
     trySync: trySync,
-    isSyncing: function () { return isSyncing; }
+    isSyncing: function () { return isSyncing; },
+    isSyncStale: isSyncStale
   };
 })();
