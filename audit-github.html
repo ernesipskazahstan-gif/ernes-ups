@@ -209,6 +209,22 @@
   .st-syncing{background:#dbeafe; color:#1e40af;} .st-done{background:#e7f6ec; color:#2E9E4C;} .st-error{background:#fdecea; color:#D9362B;}
   .sync-all-btn{width:100%; padding:12px; border-radius:10px; border:none; background:var(--navy); color:#fff; font-weight:700; font-size:14px; cursor:pointer; margin-top:6px;}
   .sync-all-btn:disabled{opacity:.5;}
+
+  /* Модалка кадрирования OCR */
+  .ocr-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:400; align-items:center; justify-content:center; padding:12px;}
+  .ocr-overlay.show{display:flex;}
+  .ocr-panel{background:#fff; border-radius:12px; padding:14px; max-width:560px; width:100%; max-height:94vh; overflow:auto;}
+  .ocr-hint{font-size:13px; color:#444; margin-bottom:10px;}
+  .ocr-stage{position:relative; display:inline-block; max-width:100%; touch-action:none; user-select:none; line-height:0;}
+  .ocr-stage canvas{max-width:100%; height:auto; border-radius:8px; display:block;}
+  .ocr-sel{position:absolute; border:2px solid var(--amber); background:rgba(242,183,5,.18); pointer-events:none; display:none;}
+  .ocr-result{margin-top:10px;}
+  .ocr-result label{font-size:12px; color:#666;}
+  .ocr-result input{width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:16px; font-family:monospace; letter-spacing:1px;}
+  .ocr-actions{display:flex; gap:8px; margin-top:12px;}
+  .ocr-btn{flex:1; padding:12px; border-radius:9px; border:none; font-size:14px; font-weight:700; cursor:pointer;}
+  .ocr-recog{background:var(--navy); color:#fff;} .ocr-apply{background:var(--green); color:#fff;} .ocr-cancel{background:#eee; color:#333;}
+  .ocr-btn:disabled{opacity:.5;}
 </style>
 </head>
 <body>
@@ -327,6 +343,26 @@
     <div class="hint" id="draftsNet"></div>
     <button class="sync-all-btn" id="syncAllBtn" onclick="syncAllNow()">🔄 Синхронизировать всё</button>
     <div id="draftsList" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- Модалка кадрирования серийного номера для OCR -->
+<div class="ocr-overlay" id="ocrOverlay">
+  <div class="ocr-panel">
+    <div class="ocr-hint">Обведите пальцем <b>только серийный номер</b> и нажмите «Распознать». Так распознаётся точнее, чем весь шильдик.</div>
+    <div class="ocr-stage" id="ocrStage">
+      <canvas id="ocrCanvas"></canvas>
+      <div class="ocr-sel" id="ocrSel"></div>
+    </div>
+    <div class="ocr-result" id="ocrResult" style="display:none;">
+      <label>Распознано (поправьте при необходимости):</label>
+      <input type="text" id="ocrText">
+    </div>
+    <div class="ocr-actions">
+      <button class="ocr-btn ocr-recog" id="ocrRecogBtn" onclick="ocrRecognize()">🔍 Распознать</button>
+      <button class="ocr-btn ocr-apply" id="ocrApplyBtn" onclick="ocrApply()" style="display:none;">✓ Вставить</button>
+      <button class="ocr-btn ocr-cancel" onclick="ocrClose()">Отмена</button>
+    </div>
   </div>
 </div>
 
@@ -823,45 +859,174 @@ function setUnitStatus(idx, key, val){
 
 function triggerScan(idx){ document.getElementById('scanFile_'+idx).click(); }
 
+/* ===================== OCR серийного номера (кадрирование + предобработка) ===================== */
+var _ocrState = { idx:null, img:null, natW:0, natH:0, dispW:0, dispH:0, sel:null, dragging:false, sx:0, sy:0 };
+var _ocrWorker = null;
+
 function scanSerial(idx, evt){
   var file = evt.target.files[0];
   if(!file) return;
-  var btn = document.getElementById('scanBtn_'+idx);
-  var reader = new FileReader();
-  reader.onload = function(){
-    var dataUrl = reader.result;
-    if(typeof Tesseract === 'undefined'){
-      alert('Модуль распознавания не загрузился (нет интернета?). Впишите серийный № вручную.');
-      return;
-    }
-    btn.textContent = '⏳ Читаем...';
-    btn.classList.add('busy');
-    btn.disabled = true;
-    Tesseract.recognize(dataUrl, 'eng')
-      .then(function(res){
-        var raw = (res.data.text || '').trim();
-        var tokens = raw.replace(/\n/g,' ').split(/\s+/).filter(function(t){ return /[A-Za-z0-9]/.test(t); });
-        tokens.sort(function(a,b){ return b.length - a.length; });
-        var guess = tokens[0] || '';
-        guess = guess.replace(/[^A-Za-z0-9\-]/g, '');
-        if(guess){
-          state.units[idx].serial = guess;
-          document.getElementById('serial_'+idx).value = guess;
-        } else {
-          alert('Не удалось распознать текст на фото. Впишите серийный № вручную.');
-        }
-      })
-      .catch(function(err){
-        alert('Ошибка распознавания: ' + err.message + '. Впишите серийный № вручную.');
-      })
-      .finally(function(){
-        btn.textContent = '📷 Скан';
-        btn.classList.remove('busy');
-        btn.disabled = false;
-      });
+  if(typeof Tesseract === 'undefined'){
+    alert('Модуль распознавания не загрузился (нет интернета?). Впишите серийный № вручную.');
+    return;
+  }
+  openOcrModal(idx, file);
+}
+
+function openOcrModal(idx, file){
+  _ocrState.idx = idx;
+  var img = new Image();
+  img.onload = function(){
+    _ocrState.img = img; _ocrState.natW = img.naturalWidth; _ocrState.natH = img.naturalHeight;
+    var canvas = document.getElementById('ocrCanvas');
+    // Ограничиваем ширину отображения, высоту считаем пропорционально
+    var maxW = Math.min(520, window.innerWidth - 44);
+    var scale = Math.min(1, maxW / img.naturalWidth);
+    _ocrState.dispW = Math.round(img.naturalWidth * scale);
+    _ocrState.dispH = Math.round(img.naturalHeight * scale);
+    canvas.width = _ocrState.dispW; canvas.height = _ocrState.dispH;
+    canvas.getContext('2d').drawImage(img, 0, 0, _ocrState.dispW, _ocrState.dispH);
+    // Дефолтная рамка — горизонтальная полоса по центру (если не будут обводить)
+    _ocrState.sel = { x: Math.round(_ocrState.dispW*0.1), y: Math.round(_ocrState.dispH*0.42),
+                      w: Math.round(_ocrState.dispW*0.8), h: Math.round(_ocrState.dispH*0.16) };
+    drawSel();
+    document.getElementById('ocrResult').style.display = 'none';
+    document.getElementById('ocrApplyBtn').style.display = 'none';
+    document.getElementById('ocrRecogBtn').style.display = '';
+    document.getElementById('ocrRecogBtn').disabled = false;
+    document.getElementById('ocrRecogBtn').textContent = '🔍 Распознать';
+    document.getElementById('ocrOverlay').classList.add('show');
   };
+  var reader = new FileReader();
+  reader.onload = function(){ img.src = reader.result; };
   reader.readAsDataURL(file);
 }
+
+function drawSel(){
+  var el = document.getElementById('ocrSel');
+  var s = _ocrState.sel;
+  if(!s){ el.style.display='none'; return; }
+  el.style.display = 'block';
+  el.style.left = s.x+'px'; el.style.top = s.y+'px';
+  el.style.width = s.w+'px'; el.style.height = s.h+'px';
+}
+
+function ocrStageXY(e){
+  var stage = document.getElementById('ocrStage');
+  var r = stage.getBoundingClientRect();
+  var p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+  return { x: Math.max(0, Math.min(_ocrState.dispW, p.clientX - r.left)),
+           y: Math.max(0, Math.min(_ocrState.dispH, p.clientY - r.top)) };
+}
+function ocrDown(e){ e.preventDefault(); _ocrState.dragging=true; var p=ocrStageXY(e); _ocrState.sx=p.x; _ocrState.sy=p.y; _ocrState.sel={x:p.x,y:p.y,w:0,h:0}; drawSel(); }
+function ocrMove(e){ if(!_ocrState.dragging) return; e.preventDefault(); var p=ocrStageXY(e);
+  _ocrState.sel={ x:Math.min(_ocrState.sx,p.x), y:Math.min(_ocrState.sy,p.y), w:Math.abs(p.x-_ocrState.sx), h:Math.abs(p.y-_ocrState.sy) }; drawSel(); }
+function ocrUp(e){ _ocrState.dragging=false; }
+
+function ocrRecognize(){
+  var s = _ocrState.sel;
+  if(!s || s.w < 12 || s.h < 8){ alert('Обведите область серийного номера пальцем.'); return; }
+  var btn = document.getElementById('ocrRecogBtn');
+  btn.disabled = true; btn.textContent = '⏳ Распознаём...';
+
+  // Переводим выделение из координат отображения в исходные пиксели
+  var kx = _ocrState.natW / _ocrState.dispW, ky = _ocrState.natH / _ocrState.dispH;
+  var cx = Math.round(s.x*kx), cy = Math.round(s.y*ky), cw = Math.round(s.w*kx), ch = Math.round(s.h*ky);
+
+  // Кроп + апскейл до ~1000px по ширине + grayscale + нормализация контраста
+  var target = 1000;
+  var up = Math.max(1, Math.min(4, target / cw));
+  var ow = Math.round(cw*up), oh = Math.round(ch*up);
+  var oc = document.createElement('canvas'); oc.width=ow; oc.height=oh;
+  var octx = oc.getContext('2d');
+  octx.drawImage(_ocrState.img, cx, cy, cw, ch, 0, 0, ow, oh);
+  preprocessGray(octx, ow, oh);
+
+  getOcrWorker().then(function(worker){
+    return worker.recognize(oc);
+  }).then(function(res){
+    var text = (res && res.data ? res.data.text : '') || '';
+    var guess = pickSerial(text);
+    document.getElementById('ocrText').value = guess;
+    document.getElementById('ocrResult').style.display = 'block';
+    document.getElementById('ocrApplyBtn').style.display = '';
+    btn.style.display = 'none';
+    if(!guess){ document.getElementById('ocrText').placeholder = 'Не распозналось — впишите вручную'; }
+  }).catch(function(err){
+    alert('Ошибка распознавания: ' + err.message + '. Впишите серийный № вручную.');
+  }).finally(function(){
+    btn.disabled = false; btn.textContent = '🔍 Распознать';
+  });
+}
+
+// Grayscale + растяжка контраста (min-max нормализация) — помогает Tesseract.
+function preprocessGray(ctx, w, h){
+  var img = ctx.getImageData(0,0,w,h), d = img.data;
+  var min=255, max=0, i;
+  for(i=0;i<d.length;i+=4){
+    var g = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114);
+    d[i]=d[i+1]=d[i+2]=g;
+    if(g<min)min=g; if(g>max)max=g;
+  }
+  var range = Math.max(1, max-min);
+  for(i=0;i<d.length;i+=4){
+    var v = (d[i]-min)/range*255;
+    v = v<0?0:v>255?255:v;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(img,0,0);
+}
+
+// Достаёт из распознанного текста наиболее похожий на серийник токен.
+function pickSerial(text){
+  var up = String(text||'').toUpperCase().replace(/[^A-Z0-9\-\/\s]/g,' ');
+  var tokens = up.split(/\s+/).filter(function(t){ return /[A-Z0-9]/.test(t) && t.length>=4; });
+  if(!tokens.length) return up.replace(/[^A-Z0-9\-\/]/g,'');
+  // предпочитаем токены, где есть и буквы, и цифры (типичный серийник), затем длину
+  tokens.sort(function(a,b){
+    var am=(/[A-Z]/.test(a)&&/[0-9]/.test(a))?1:0, bm=(/[A-Z]/.test(b)&&/[0-9]/.test(b))?1:0;
+    if(am!==bm) return bm-am;
+    return b.length-a.length;
+  });
+  return tokens[0].replace(/[^A-Z0-9\-\/]/g,'');
+}
+
+function getOcrWorker(){
+  if(_ocrWorker) return Promise.resolve(_ocrWorker);
+  return Tesseract.createWorker('eng').then(function(w){
+    return w.setParameters({
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/',
+      tessedit_pageseg_mode: '6'
+    }).then(function(){ _ocrWorker = w; return w; });
+  });
+}
+
+function ocrApply(){
+  var val = document.getElementById('ocrText').value.trim();
+  var idx = _ocrState.idx;
+  if(val && idx !== null){
+    state.units[idx].serial = val;
+    var f = document.getElementById('serial_'+idx);
+    if(f){ f.value = val; f.dispatchEvent(new Event('input')); }
+  }
+  ocrClose();
+}
+function ocrClose(){
+  document.getElementById('ocrOverlay').classList.remove('show');
+  _ocrState.idx = null; _ocrState.img = null; _ocrState.sel = null;
+}
+
+// Слушатели рамки (touch + мышь)
+(function(){
+  var stage = document.getElementById('ocrStage');
+  if(!stage) return;
+  stage.addEventListener('mousedown', ocrDown);
+  stage.addEventListener('mousemove', ocrMove);
+  window.addEventListener('mouseup', ocrUp);
+  stage.addEventListener('touchstart', ocrDown, {passive:false});
+  stage.addEventListener('touchmove', ocrMove, {passive:false});
+  stage.addEventListener('touchend', ocrUp);
+})();
 
 function labelForUnitStatus(unit, key){
   var s = unit.statuses[key];
