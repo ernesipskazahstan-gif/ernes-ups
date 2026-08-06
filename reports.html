@@ -346,7 +346,7 @@
 
   <div id="listView">
     <div class="toolbar">
-      <input type="text" id="searchInput" placeholder="Поиск по заказчику, модели, № акта...">
+      <input type="text" id="searchInput" placeholder="Поиск по заказчику, БИН, модели, № акта...">
       <button onclick="reloadCurrent()">🔄 Обновить</button>
     </div>
     <div id="actsList"><div class="loading-msg">Загрузка...</div></div>
@@ -383,7 +383,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">v10: редактирование ТО в журнале + 3 стадии (пост-ТО доработки)</div>
+<div class="build-version">v11: БИН + отчёт по парку + ссылка клиенту (диагностика)</div>
 
 
 <script>
@@ -393,7 +393,7 @@
 
 /* FINAL_PAGE_B64 → logos.js */
 
-var APP_VERSION = 'v10 · 06.08.2026';
+var APP_VERSION = 'v11 · 06.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
 (function(){ var e=document.getElementById('appVer'); if(e) e.textContent = APP_VERSION; })();
 
@@ -540,7 +540,8 @@ function actMatchesQuery(act, q){
          modelsText.indexOf(q) !== -1 ||
          (act.actNumber||'').toLowerCase().indexOf(q) !== -1 ||
          (act.address||'').toLowerCase().indexOf(q) !== -1 ||
-         (act.basis||'').toLowerCase().indexOf(q) !== -1;
+         (act.basis||'').toLowerCase().indexOf(q) !== -1 ||
+         String(act.bin||'').toLowerCase().indexOf(q) !== -1;
 }
 
 function showList(){
@@ -631,11 +632,12 @@ function renderViewMode(){
           '</label>'+
           '<button class="edit-btn" onclick="printAct()">🖨 Печать / PDF</button>'+
           '<button class="edit-btn" style="margin-left:8px;" onclick="enterEditMode()">✏️ Редактировать</button>'+
+          '<button class="edit-btn" style="margin-left:8px;background:#3CB043;" onclick="openDiagLink()">🔗 Ссылка клиенту</button>'+
         '</div>'+
       '</div>'+
       '<div class="detail-sub">' + esc(act.date) + ' · инженер ' + esc(act.engineer || '—') + '</div>'+
       '<table class="kv-table">'+
-        row('Заказчик', act.client) + row('Контактное лицо', act.contact) +
+        row('Заказчик', act.client) + row('БИН', act.bin) + row('Контактное лицо', act.contact) +
         row('Адрес объекта', act.address) + row('Основание', act.basis) +
       '</table>'+
       '<div class="section-title">ИБП</div>' + unitsHtml +
@@ -739,7 +741,7 @@ function enterEditMode(){
   var act = currentAct;
   var rawUnits = safeParse(act.unitsJson, []);
   editState = {
-    client: act.client, contact: act.contact, address: act.address, basis: act.basis, engineer: act.engineer,
+    client: act.client, bin: act.bin, contact: act.contact, address: act.address, basis: act.basis, engineer: act.engineer,
     units: rawUnits.map(function(u){
       var statuses = {};
       STATUS_ITEMS.forEach(function(item){
@@ -765,6 +767,7 @@ function renderEditMode(){
         '<h2>Редактирование — ' + esc(currentAct.actNumber) + '</h2>'+
       '</div>'+
       efield('Заказчик', 'ed_client', editState.client) +
+      efield('БИН компании', 'ed_bin', editState.bin) +
       efield('Контактное лицо', 'ed_contact', editState.contact) +
       efield('Адрес объекта', 'ed_address', editState.address) +
       efield('Основание', 'ed_basis', editState.basis) +
@@ -985,7 +988,7 @@ function saveEdit(){
   });
 
   var payload = {
-    client: editState.client, contact: editState.contact, address: editState.address,
+    client: editState.client, bin: editState.bin, contact: editState.contact, address: editState.address,
     basis: editState.basis, engineer: editState.engineer,
     units: unitsOut, loads: editState.loads, genset: editState.genset,
     conclusion: editState.conclusion
@@ -994,7 +997,7 @@ function saveEdit(){
   callPost('updateAct', { actNumber: currentAct.actNumber, payload: payload })
     .then(function(){
       Object.assign(currentAct, {
-        client: payload.client, contact: payload.contact, address: payload.address,
+        client: payload.client, bin: payload.bin, contact: payload.contact, address: payload.address,
         basis: payload.basis, engineer: payload.engineer,
         unitsJson: JSON.stringify(payload.units), loadsJson: JSON.stringify(payload.loads),
         gensetJson: JSON.stringify(payload.genset), conclusion: payload.conclusion
@@ -1672,7 +1675,8 @@ function renderViewModeTO(){
         return '<div class="pov-improve" style="margin:8px 0 6px;">Состояние объекта: <b>было '+pb+'%</b> → <b style="color:#2E9E4C">стало '+(pa!==null?pa:pb)+'%</b>'+(up>0?' <span class="pov-up">▲ +'+up+'%</span>':'')+'</div>';
       })()+
       '<button class="edit-btn" style="margin:0 0 10px;background:#6b7280;" onclick="enterEditModeTO()">✏️ Редактировать / внести доработки</button>'+
-      '<table class="kv-table">'+row('Заказчик',act.client)+row('Контактное лицо',act.contact)+row('Адрес объекта',act.address)+row('Основание (договор)',act.basis)+'</table>'+
+      (act.bin ? '<button class="edit-btn" style="margin:0 0 10px 8px;background:#0d9488;" onclick="openFleetLink()">🏢 Отчёт по парку компании</button>' : '')+
+      '<table class="kv-table">'+row('Заказчик',act.client)+row('БИН',act.bin)+row('Контактное лицо',act.contact)+row('Адрес объекта',act.address)+row('Основание (договор)',act.basis)+'</table>'+
       '<div class="section-title">ИБП — чек-лист ТО</div>'+unitsHtml+
       '<div class="section-title">Заключение и рекомендации</div><div class="conclusion-box">'+esc(act.conclusion||'не заполнено')+'</div>'+
       '<div class="section-title">Прочие фото (помещение и т.п.)</div><div id="photoGroups"><span class="no-photos">Загрузка фото...</span></div>'+
@@ -1689,7 +1693,7 @@ function enterEditModeTO(){
   var act = currentAct;
   var units = safeParse(act.unitsJson, []);
   editStateTO = {
-    client: act.client||'', contact: act.contact||'', address: act.address||'',
+    client: act.client||'', bin: act.bin||'', contact: act.contact||'', address: act.address||'',
     basis: act.basis||'', engineer: act.engineer||'', conclusion: act.conclusion||'',
     units: units.map(function(u){ return JSON.parse(JSON.stringify(u)); }) // глубокая копия (сохраняет to + afterService)
   };
@@ -1753,7 +1757,7 @@ function etoUnitIdent(u, idx){
     '<div class="edit-field"><label>Год АКБ</label><input type="text" value="'+esc(u.batteryYear)+'" oninput="editStateTO.units['+idx+'].batteryYear=this.value"></div>';
 }
 function renderEditModeTO(){
-  var reqs = etoField('Заказчик','client',editStateTO.client)+etoField('Контактное лицо','contact',editStateTO.contact)+
+  var reqs = etoField('Заказчик','client',editStateTO.client)+etoField('БИН компании','bin',editStateTO.bin)+etoField('Контактное лицо','contact',editStateTO.contact)+
     etoField('Адрес объекта','address',editStateTO.address)+etoField('Основание (договор)','basis',editStateTO.basis)+
     etoField('Инженер','engineer',editStateTO.engineer);
   var unitsHtml = editStateTO.units.map(function(u, idx){
@@ -1776,14 +1780,14 @@ function renderEditModeTO(){
 }
 function saveEditTO(){
   var payload = {
-    client: editStateTO.client, contact: editStateTO.contact, address: editStateTO.address,
+    client: editStateTO.client, bin: editStateTO.bin, contact: editStateTO.contact, address: editStateTO.address,
     basis: editStateTO.basis, engineer: editStateTO.engineer, conclusion: editStateTO.conclusion,
     units: editStateTO.units
   };
   callPost('updateMaintenance', { actNumber: currentAct.actNumber, payload: payload })
     .then(function(){
       Object.assign(currentAct, {
-        client: payload.client, contact: payload.contact, address: payload.address,
+        client: payload.client, bin: payload.bin, contact: payload.contact, address: payload.address,
         basis: payload.basis, engineer: payload.engineer, conclusion: payload.conclusion,
         unitsJson: JSON.stringify(payload.units)
       });
@@ -1921,6 +1925,30 @@ function cardUrlFor(serial){
   return base + '?sn=' + encodeURIComponent(normSerial(serial));
 }
 
+// Публичный отчёт по всему парку компании (по БИН)
+function openFleetLink(){
+  var bin = String(currentAct.bin||'').replace(/\D/g,'');
+  if(!bin){ alert('У акта не указан БИН — заполните его через «Редактировать».'); return; }
+  var url = new URL('fleet.html', location.href).href + '?bin=' + encodeURIComponent(bin);
+  showLinkModal('Отчёт по парку компании', url, 'Ссылка на сводный отчёт по всему парку ИБП компании (все объекты).');
+}
+// Публичная страница акта диагностики для клиента (без QR)
+function openDiagLink(){
+  var num = currentAct.actNumber;
+  if(!num){ alert('Нет № акта.'); return; }
+  var url = new URL('diag-card.html', location.href).href + '?act=' + encodeURIComponent(num);
+  showLinkModal('Ссылка клиенту (акт диагностики)', url, 'Отправьте клиенту — он увидит акт с результатами без QR-кода.');
+}
+// Универсальная модалка «скопируй ссылку» (переиспользует оверлей наклейки)
+function showLinkModal(title, url, hint){
+  _labelCtx = { url: url };
+  document.querySelector('#labelOverlay h3').textContent = title;
+  document.getElementById('labelPreview').innerHTML = '<div style="font-size:13px;color:#555;padding:6px 0;">'+esc(hint)+'</div>';
+  document.getElementById('labelLink').value = url;
+  var pb = document.querySelector('#labelOverlay .lp-print'); if(pb) pb.style.display = 'none';
+  document.getElementById('labelOverlay').classList.add('show');
+}
+
 function qrDataUrl(text, cell){
   if(typeof qrcode === 'undefined') return null;
   var qr = qrcode(0, 'M');      // авто-версия, коррекция M
@@ -1953,6 +1981,8 @@ function makeLabelInner(unitIdx){
       '<div class="lc-cap">Сканируйте — история обслуживания ИБП</div>'+
     '</div>';
   document.getElementById('labelLink').value = _labelCtx.url;
+  document.querySelector('#labelOverlay h3').textContent = 'QR-наклейка на ИБП';
+  var pb = document.querySelector('#labelOverlay .lp-print'); if(pb) pb.style.display = '';
   document.getElementById('labelOverlay').classList.add('show');
 }
 
