@@ -168,6 +168,26 @@
   .pov-dir{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; padding:4px 0; border-bottom:1px solid #f0f0f0;}
   .pov-dir-name{color:#333; font-weight:600;}
   .pov-dot{width:12px; height:12px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.08);}
+  .pov-improve{font-size:13px; margin:2px 0 12px; padding:8px 12px; background:#eef6ee; border-radius:8px;}
+  .pov-improve .pov-up{color:#2E9E4C; font-weight:800; margin-left:6px;}
+  .edit-unit{border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:14px; background:#fafafa;}
+  .eu-title{font-weight:800; color:#1F4E79; margin-bottom:8px;}
+  .eto-hint{font-size:12px; color:#8a6d00; background:#fff8e1; border-radius:6px; padding:6px 8px; margin:6px 0;}
+  .eto-sec{font-weight:700; color:#1F4E79; font-size:13px; margin:12px 0 4px; padding-top:6px; border-top:1px dashed #ddd;}
+  .eto-item{margin-bottom:8px;}
+  .eto-lbl{font-size:13px; color:#333; font-weight:600; margin-bottom:3px;}
+  .eto-row{display:flex; align-items:center; gap:8px; margin:3px 0; font-size:13px;}
+  .eto-row > span{flex:0 0 78px; color:#666;}
+  .eto-row input, .eto-row select{flex:1; padding:7px; border:1px solid #ccc; border-radius:6px; font-size:14px;}
+  .eto-svc{font-size:11px; color:#888; margin-top:2px;}
+  .eto-check{display:flex; align-items:center; gap:8px; font-size:13px;}
+  .eto-phase{display:flex; gap:8px;} .eto-phase label{flex:1; font-size:12px; color:#666;} .eto-phase input{width:100%; padding:6px; border:1px solid #ccc; border-radius:6px;}
+  .eto-cell-row{display:flex; align-items:center; gap:6px; margin:3px 0;} .eto-cell-row span{flex:0 0 34px; font-size:12px; color:#888;}
+  .eto-cell-row input{flex:1; padding:6px; border:1px solid #ccc; border-radius:6px;}
+  .eto-x{background:#f3d6d3; border:none; border-radius:6px; padding:6px 9px; cursor:pointer;}
+  .eto-add{background:#e8f0e8; border:none; border-radius:6px; padding:7px 12px; font-size:13px; cursor:pointer; margin-top:4px;}
+  .edit-actions{display:flex; gap:10px; margin-top:14px;}
+  .cancel-btn{background:#eee; color:#333; border:none; border-radius:8px; padding:12px 16px; font-weight:700; cursor:pointer;}
   .pov-cols{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:12px;}
   .pov-block-head{font-size:10px; font-weight:800; color:#1F4E79; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
   .pov-li{display:flex; gap:6px; align-items:flex-start; font-size:11px; padding:3px 0; line-height:1.35;}
@@ -295,6 +315,10 @@
   .label-panel .lp-actions{display:flex; gap:8px;}
   .label-panel .lp-actions button{flex:1; padding:11px; border-radius:8px; border:none; font-weight:700; font-size:14px; cursor:pointer;}
   .lp-print{background:var(--navy); color:#fff;} .lp-close{background:#eee; color:#333;}
+  .lp-link{margin:10px 0; text-align:left;}
+  .lp-link-row{display:flex; gap:6px; margin-top:4px;}
+  .lp-link-row input{flex:1; padding:8px; border:1px solid #ccc; border-radius:7px; font-size:12px; font-family:monospace; background:#f7f9fb;}
+  .lp-copy{padding:8px 12px; border:none; border-radius:7px; background:var(--amber); color:#1a1a1a; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;}
   .print-label{text-align:center; padding:40px 20px;}
   .print-label .pl-card{border:3px solid var(--navy); border-radius:16px; padding:24px; display:inline-block; max-width:420px;}
   .print-label img.pl-logo{height:48px; margin-bottom:12px;}
@@ -343,6 +367,13 @@
   <div class="label-panel">
     <h3>QR-наклейка на ИБП</h3>
     <div id="labelPreview"></div>
+    <div class="lp-link">
+      <label style="font-size:12px;color:#666;">Ссылка (для отправки клиенту без QR):</label>
+      <div class="lp-link-row">
+        <input type="text" id="labelLink" readonly onclick="this.select()">
+        <button type="button" class="lp-copy" onclick="copyLabelLink()">📋 Копировать</button>
+      </div>
+    </div>
     <div class="lp-actions">
       <button class="lp-print" onclick="printLabel()">🖨 Печать наклейки</button>
       <button class="lp-close" onclick="closeLabel()">Закрыть</button>
@@ -352,7 +383,7 @@
 
 <div class="print-only" id="printTemplate"></div>
 
-<div class="build-version">v7: сжатие старых фото при отправке (дослать без переснятия)</div>
+<div class="build-version">v10: редактирование ТО в журнале + 3 стадии (пост-ТО доработки)</div>
 
 
 <script>
@@ -362,7 +393,7 @@
 
 /* FINAL_PAGE_B64 → logos.js */
 
-var APP_VERSION = 'v7 · 05.08.2026';
+var APP_VERSION = 'v10 · 06.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
 (function(){ var e=document.getElementById('appVer'); if(e) e.textContent = APP_VERSION; })();
 
@@ -375,8 +406,6 @@ var editPhotoGroups = [];
 var viewPhotoGroups = [];
 
 var STATUS_ITEMS = [
-  {key:'statusInverter',  title:'Инверторный блок'},
-  {key:'statusRectifier', title:'Выпрямительный блок'},
   {key:'statusBattery',   title:'АКБ'},
   {key:'statusDisplay',   title:'Индикация'},
   {key:'statusFans',      title:'Вентиляторы'},
@@ -565,6 +594,7 @@ function renderViewMode(){
       '<div class="unit-block-body collapsed" id="' + bodyId + '">'+
         '<table class="kv-table">'+
           row('Мощность', u.power ? u.power + ' ' + (u.powerUnit || 'кВА') : '') +
+          row('Фазность', u.phases ? (String(u.phases)==='3'?'3-фазный':'1-фазный') : '') +
           row('Тип шкафа', u.cabinetType) + row('Кол-во шкафов', u.cabinetCount) +
           row('Кол-во АКБ', u.batteryCount) + row('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
           row('Модель АКБ', u.batteryModel) + row('Год АКБ', u.batteryYear) +
@@ -1128,18 +1158,24 @@ function overviewDiag(units){
 
 // ТО: направления = разделы; + замечания (статусы/дефект/слабые АКБ), статистика, выводы.
 function overviewTO(units){
-  var total=0, sum=0, dirs=[], findings=[], g=0,y=0,r=0;
+  var totalA=0, sumA=0, totalB=0, sumB=0, dirs=[], findings=[], g=0,y=0,r=0;
   TO_SECTIONS.forEach(function(sec){
     var worst='', chkTotal=0, chkDone=0;
     sec.items.forEach(function(it){
       if(it.t==='status'){
         units.forEach(function(u, i){
           var s = statusSlot(u, it.key);
-          var sc = scoreOf(s.value);
-          if(sc !== null){
-            total++; sum += sc; worst = worseOf(worst, s.value);
-            if(s.value==='green') g++; else if(s.value==='yellow') y++; else if(s.value==='red') r++;
-            if(s.value==='yellow' || s.value==='red') findings.push({ level:s.value, text:'ИБП #'+(i+1)+' — '+it.label+(s.comment?': '+s.comment:'') });
+          var scB = scoreOf(s.before), scA = scoreOf(s.after);
+          if(scB !== null){ totalB++; sumB += scB; }
+          if(scA !== null){
+            totalA++; sumA += scA; worst = worseOf(worst, s.after);
+            if(s.after==='green') g++; else if(s.after==='yellow') y++; else if(s.after==='red') r++;
+          }
+          // замечание = было не норма; показываем устранение
+          if(s.before==='yellow' || s.before==='red'){
+            var txt = 'ИБП #'+(i+1)+' — '+it.label+': было '+shortWord(s.before)+
+                      (s.work ? ', ' + s.work : '') + (s.after ? ' → стало '+shortWord(s.after) : '');
+            findings.push({ level:(s.after==='green'?'fixed':s.before), text:txt });
           }
         });
       } else if(it.t==='check'){
@@ -1152,16 +1188,30 @@ function overviewTO(units){
   });
   units.forEach(function(u, i){
     var d = statusSlot(u,'defect');
-    var sc = scoreOf(d.value);
-    if(sc!==null){ total++; sum+=sc; if(d.value==='green')g++; else if(d.value==='yellow')y++; else if(d.value==='red')r++;
-      if(d.value==='yellow'||d.value==='red') findings.push({ level:d.value, text:'ИБП #'+(i+1)+' — требуется замена/ремонт'+(d.comment?': '+d.comment:'') }); }
+    var scB=scoreOf(d.before), scA=scoreOf(d.after);
+    if(scB!==null){ totalB++; sumB+=scB; }
+    if(scA!==null){ totalA++; sumA+=scA; if(d.after==='green')g++; else if(d.after==='yellow')y++; else if(d.after==='red')r++; }
+    if(d.before==='yellow'||d.before==='red'){
+      findings.push({ level:(d.after==='green'?'fixed':d.before), text:'ИБП #'+(i+1)+' — требуется замена/ремонт: было '+shortWord(d.before)+(d.work?', '+d.work:'')+(d.after?' → стало '+shortWord(d.after):'') });
+    }
     var weak = weakCellNumbers(getTo(u).s10_cells||[]);
     if(weak.length) findings.push({ level:'yellow', text:'ИБП #'+(i+1)+' — слабые элементы АКБ: №'+weak.join(', №') });
   });
-  var pct = total ? Math.round(sum/total*100) : null;
-  return { pct:pct, dirs:dirs, findings:findings,
-    stats:{ units:units.length, green:g, yellow:y, red:r, checks:total },
-    conclusions: keyConclusions(pct, r, y, 'to') };
+  var pctA = totalA ? Math.round(sumA/totalA*100) : null;
+  var pctB = totalB ? Math.round(sumB/totalB*100) : null;
+  return { pct:pctA, pctBefore:pctB, dirs:dirs, findings:findings,
+    stats:{ units:units.length, green:g, yellow:y, red:r, checks:totalA },
+    conclusions: keyConclusions(pctA, r, y, 'to') };
+}
+function shortWord(v){ return v==='green'?'норма':v==='yellow'?'замечание':v==='red'?'неисправность':'—'; }
+// Процент состояния по стадии для набора ИБП (журнал).
+function toPctUnitsJ(units, stage){
+  var total=0, sum=0;
+  (units||[]).forEach(function(u){
+    toForEachItem(function(it){ if(it.t==='status'){ var sc=scoreOf(statusSlot(u,it.key)[stage]); if(sc!==null){ total++; sum+=sc; } } });
+    var d=scoreOf(statusSlot(u,'defect')[stage]); if(d!==null){ total++; sum+=d; }
+  });
+  return total ? Math.round(sum/total*100) : null;
 }
 
 // Ключевые выводы — генерируются из общей оценки и наличия замечаний.
@@ -1217,12 +1267,16 @@ function overviewSectionHtml(ov, photoCount){
     return '<div class="pov-li ok"><span class="ic">✓</span><span>'+esc(t)+'</span></div>';
   }).join('');
 
-  var findings = ov.findings.slice().sort(function(a,b){ return (b.level==='red'?1:0)-(a.level==='red'?1:0); });
-  var shown = findings.slice(0, 8);
+  var findings = ov.findings.slice().sort(function(a,b){
+    var rank = function(l){ return l==='red'?3:l==='yellow'?2:l==='fixed'?1:0; };
+    return rank(b.level)-rank(a.level);
+  });
+  var shown = findings.slice(0, 10);
   var findHtml = shown.length ? shown.map(function(f){
+    if(f.level==='fixed') return '<div class="pov-li ok"><span class="ic">✓</span><span>'+esc(f.text)+'</span></div>';
     var cls = f.level==='red' ? 'bad' : 'warn';
     return '<div class="pov-li '+cls+'"><span class="ic">⚠</span><span>'+esc(f.text)+'</span></div>';
-  }).join('') + (findings.length>8 ? '<div class="pov-more">…и ещё '+(findings.length-8)+'</div>' : '')
+  }).join('') + (findings.length>10 ? '<div class="pov-more">…и ещё '+(findings.length-10)+'</div>' : '')
     : '<div class="pov-li ok"><span class="ic">✓</span><span>Замечаний не выявлено</span></div>';
 
   var s = ov.stats;
@@ -1238,15 +1292,25 @@ function overviewSectionHtml(ov, photoCount){
     return '<div class="pov-stat"><div class="v">'+c[1]+'</div><div class="l">'+c[0]+'</div></div>';
   }).join('');
 
+  // «Было → стало» (для ТО, где есть pctBefore)
+  var improve = '';
+  if(typeof ov.pctBefore === 'number' && ov.pctBefore !== null){
+    var up = (ov.pct||0) - ov.pctBefore;
+    improve = '<div class="pov-improve">Состояние объекта: <b>было '+ov.pctBefore+'%</b> → <b style="color:#2E9E4C">стало '+(ov.pct!==null?ov.pct:ov.pctBefore)+'%</b>'+
+      (up>0?' <span class="pov-up">▲ +'+up+'%</span>':'')+'</div>';
+  }
+  var findHead = (typeof ov.pctBefore === 'number') ? 'Замечания и что сделано' : 'Основные замечания';
+
   return '<div class="psection">'+
     '<div class="psection-head">Общая оценка объекта</div>'+
+    improve+
     '<div class="poverview">'+
       donutHtml(ov.pct)+
       '<div class="pov-dirs">'+dirs+'</div>'+
     '</div>'+
     '<div class="pov-cols">'+
       '<div class="pov-block"><div class="pov-block-head">Ключевые выводы</div>'+conclHtml+'</div>'+
-      '<div class="pov-block"><div class="pov-block-head">Основные замечания</div>'+findHtml+'</div>'+
+      '<div class="pov-block"><div class="pov-block-head">'+findHead+'</div>'+findHtml+'</div>'+
     '</div>'+
     '<div class="pov-stats">'+statsHtml+'</div>'+
   '</div>';
@@ -1442,7 +1506,27 @@ function toForEachItem(cb){ TO_SECTIONS.forEach(function(sec){ sec.items.forEach
 function dotClass(v){ return (v === 'green' || v === 'yellow' || v === 'red') ? v : 'gray'; }
 function statusWord(v){ return v==='green'?'Норма':v==='yellow'?'Замечание':v==='red'?'Неисправность':'не отмечено'; }
 function getTo(u){ return (u && u.to) || {}; }
-function statusSlot(u, key){ var s = getTo(u)[key]; return (s && typeof s === 'object') ? s : {value:'', comment:''}; }
+function statusSlot(u, key){
+  var s = getTo(u)[key];
+  if(!s || typeof s !== 'object') return { before:'', work:'', after:'', afterService:'' };
+  if('before' in s || 'after' in s) return { before:s.before||'', work:s.work||'', after:s.after||'', afterService:(s.afterService!==undefined&&s.afterService!==null?s.afterService:'') };
+  return { before:s.value||'', work:s.comment||'', after:s.value||'', afterService:s.value||'' }; // старый формат
+}
+// Строка статуса ТО с логикой ДО → работа → ПОСЛЕ.
+function statusRowHtml(label, s){
+  if(!s.before && !s.after){
+    return '<div class="mstatus"><span class="dot gray"></span><span class="nm">'+esc(label)+'</span><span class="wd">не отмечено</span></div>';
+  }
+  if(s.before === 'green'){
+    return '<div class="mstatus"><span class="dot green"></span><span class="nm">'+esc(label)+'</span><span class="wd">Норма</span></div>';
+  }
+  var html = '<div class="mstatus"><span class="dot '+dotClass(s.before)+'"></span><span class="nm">'+esc(label)+'</span>'+
+    '<span class="wd">было: '+statusWord(s.before)+'</span>';
+  if(s.work) html += '<span class="cm">🔧 выполнено: '+esc(s.work)+'</span>';
+  if(s.after) html += '<span class="cm" style="color:'+(s.after==='green'?'#2E9E4C':'#9a7400')+'">→ стало: '+statusWord(s.after)+'</span>';
+  html += '</div>';
+  return html;
+}
 
 function weakCellFlags(arr){
   arr = arr || [];
@@ -1462,8 +1546,8 @@ function weakCellNumbers(arr){ var res=weakCellFlags(arr), out=[]; res.flags.for
 
 function unitFlagCounts(u){
   var reds=0, yellows=0;
-  toForEachItem(function(it){ if(it.t==='status'){ var v=statusSlot(u,it.key).value; if(v==='red')reds++; else if(v==='yellow')yellows++; } });
-  var d=statusSlot(u,'defect').value; if(d==='red')reds++; else if(d==='yellow')yellows++;
+  toForEachItem(function(it){ if(it.t==='status'){ var v=statusSlot(u,it.key).before; if(v==='red')reds++; else if(v==='yellow')yellows++; } });
+  var d=statusSlot(u,'defect').before; if(d==='red')reds++; else if(d==='yellow')yellows++;
   return { reds:reds, yellows:yellows, weak: weakCellNumbers(getTo(u).s10_cells||[]).length };
 }
 function actFlagCounts(units){ var t={reds:0,yellows:0,weak:0}; (units||[]).forEach(function(u){ var c=unitFlagCounts(u); t.reds+=c.reds; t.yellows+=c.yellows; t.weak+=c.weak; }); return t; }
@@ -1508,8 +1592,11 @@ function openDetailTO(idx){
 }
 
 function unitIdTableHtml(u){
+  var powerStr = u.power ? (u.power + ' ' + (u.powerUnit||'кВА')) : '';
+  var phaseStr = u.phases ? (String(u.phases)==='3' ? '3-фазный' : '1-фазный') : '';
   return '<table class="kv-table">'+
     row('Модель ИБП', u.model) + row('Серийный №', u.serial) +
+    row('Мощность', powerStr) + row('Фазность', phaseStr) +
     row('Тип шкафа', u.cabinetType) + row('Кол-во шкафов', u.cabinetCount) +
     row('Кол-во АКБ', u.batteryCount) + row('Ёмкость АКБ', u.batteryCapacity ? u.batteryCapacity + ' Ач' : '') +
     row('Модель АКБ', u.batteryModel) + row('Год АКБ', u.batteryYear) +
@@ -1518,9 +1605,7 @@ function unitIdTableHtml(u){
 function toItemHtml(u, item){
   var to = getTo(u);
   if(item.t==='status'){
-    var s=statusSlot(u,item.key);
-    return '<div class="mstatus"><span class="dot ' + dotClass(s.value) + '"></span><span class="nm">' + esc(item.label) + '</span>'+
-      '<span class="wd">' + statusWord(s.value) + '</span>' + (s.comment ? '<span class="cm">' + esc(s.comment) + '</span>' : '') + '</div>';
+    return statusRowHtml(item.label, statusSlot(u, item.key));
   }
   if(item.t==='num'){ var v=to[item.key]; var shown=(v===''||v===undefined||v===null)?'—':esc(v)+(item.unit?' '+item.unit:''); return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+shown+'</span></div>'; }
   if(item.t==='text'){ var tv=to[item.key]; return '<div class="mrow"><span class="mkey">'+esc(item.label)+'</span><span class="mval">'+(tv?esc(tv):'—')+'</span></div>'; }
@@ -1545,8 +1630,7 @@ function toCellsHtml(arr){
 }
 function toUnitSectionsHtml(u){
   var sections=TO_SECTIONS.map(function(sec){ var items=sec.items.map(function(it){ return toItemHtml(u,it); }).join(''); return '<div class="sec-title">'+sec.n+'. '+esc(sec.title)+'</div>'+items; }).join('');
-  var d=statusSlot(u,'defect');
-  var defect='<div class="sec-title">Выявленные неисправности</div><div class="mstatus"><span class="dot '+dotClass(d.value)+'"></span><span class="nm">Требуется замена / ремонт узлов</span><span class="wd">'+statusWord(d.value)+'</span>'+(d.comment?'<span class="cm">'+esc(d.comment)+'</span>':'')+'</div>';
+  var defect='<div class="sec-title">Выявленные неисправности</div>'+statusRowHtml('Требуется замена / ремонт узлов', statusSlot(u,'defect'));
   return sections+defect;
 }
 function renderViewModeTO(){
@@ -1577,6 +1661,17 @@ function renderViewModeTO(){
         '<div><label style="font-size:13px;margin-right:10px;user-select:none;cursor:pointer;"><input type="checkbox" id="printPhotos" checked style="vertical-align:middle;margin-right:4px;"> Фото в акте</label>'+
         '<button class="edit-btn" onclick="printActTO()">🖨 Печать / PDF</button></div></div>'+
       '<div class="detail-sub">'+esc(act.date)+' · инженер '+esc(act.engineer||'—')+'</div>'+
+      (function(){
+        var pb=toPctUnitsJ(units,'before'), ps=toPctUnitsJ(units,'afterService'), pa=toPctUnitsJ(units,'after');
+        if(pb===null) return '';
+        // Три точки, если были пост-ТО доработки (after отличается от снимка afterService)
+        if(ps!==null && pa!==null && ps!==pa){
+          return '<div class="pov-improve" style="margin:8px 0 6px;">Прогресс: <b>до ТО '+pb+'%</b> → <b>после ТО '+ps+'%</b> → <b style="color:#2E9E4C">после доработок '+pa+'%</b></div>';
+        }
+        var up=(pa!==null?pa:pb)-pb;
+        return '<div class="pov-improve" style="margin:8px 0 6px;">Состояние объекта: <b>было '+pb+'%</b> → <b style="color:#2E9E4C">стало '+(pa!==null?pa:pb)+'%</b>'+(up>0?' <span class="pov-up">▲ +'+up+'%</span>':'')+'</div>';
+      })()+
+      '<button class="edit-btn" style="margin:0 0 10px;background:#6b7280;" onclick="enterEditModeTO()">✏️ Редактировать / внести доработки</button>'+
       '<table class="kv-table">'+row('Заказчик',act.client)+row('Контактное лицо',act.contact)+row('Адрес объекта',act.address)+row('Основание (договор)',act.basis)+'</table>'+
       '<div class="section-title">ИБП — чек-лист ТО</div>'+unitsHtml+
       '<div class="section-title">Заключение и рекомендации</div><div class="conclusion-box">'+esc(act.conclusion||'не заполнено')+'</div>'+
@@ -1585,6 +1680,116 @@ function renderViewModeTO(){
     '</div>';
 
   loadPhotos(act.folderUrl); // общая функция диаг-журнала
+}
+
+/* ================= Редактор ТО (правки + пост-ТО доработки) ================= */
+var editStateTO = null;
+
+function enterEditModeTO(){
+  var act = currentAct;
+  var units = safeParse(act.unitsJson, []);
+  editStateTO = {
+    client: act.client||'', contact: act.contact||'', address: act.address||'',
+    basis: act.basis||'', engineer: act.engineer||'', conclusion: act.conclusion||'',
+    units: units.map(function(u){ return JSON.parse(JSON.stringify(u)); }) // глубокая копия (сохраняет to + afterService)
+  };
+  renderEditModeTO();
+}
+
+function etoField(label, prop, val){
+  return '<div class="edit-field"><label>'+label+'</label><input type="text" value="'+esc(val)+'" oninput="editStateTO.'+prop+'=this.value"></div>';
+}
+function etoStatusSelect(idx, key, stage, cur){
+  var opts = [['','—'],['green','🟢 Норма'],['yellow','🟡 Замечание'],['red','🔴 Неисправность']];
+  return '<select onchange="editStateTO.units['+idx+'].to[\''+key+'\'].'+stage+'=this.value">'+
+    opts.map(function(o){ return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>';
+}
+function etoSlotHtml(idx, key, label){
+  var s = editStateTO.units[idx].to[key];
+  if(!s || typeof s !== 'object'){ s = {before:'',work:'',after:''}; editStateTO.units[idx].to[key] = s; }
+  var svc = (s.afterService!==undefined && s.afterService!=='' && s.afterService!==null)
+    ? '<div class="eto-svc">снимок «после ТО»: '+shortWord(s.afterService)+' (не меняется)</div>' : '';
+  return '<div class="eto-item"><div class="eto-lbl">'+esc(label)+'</div>'+
+    '<div class="eto-row"><span>ДО:</span>'+etoStatusSelect(idx,key,'before',s.before||'')+'</div>'+
+    '<div class="eto-row"><span>Работа:</span><input type="text" value="'+esc(s.work||'')+'" oninput="editStateTO.units['+idx+'].to[\''+key+'\'].work=this.value" placeholder="что сделано"></div>'+
+    '<div class="eto-row"><span>ПОСЛЕ:</span>'+etoStatusSelect(idx,key,'after',s.after||'')+'</div>'+svc+'</div>';
+}
+function etoItemHtml(idx, item){
+  var to = editStateTO.units[idx].to, key = item.key;
+  if(item.t==='status') return etoSlotHtml(idx, key, item.label);
+  if(item.t==='num') return '<div class="eto-item"><div class="eto-row"><span>'+esc(item.label)+(item.unit?', '+item.unit:'')+'</span><input type="number" step="any" value="'+esc(to[key]||'')+'" oninput="editStateTO.units['+idx+'].to[\''+key+'\']=this.value"></div></div>';
+  if(item.t==='text') return '<div class="eto-item"><div class="eto-row"><span>'+esc(item.label)+'</span><input type="text" value="'+esc(to[key]||'')+'" oninput="editStateTO.units['+idx+'].to[\''+key+'\']=this.value"></div></div>';
+  if(item.t==='check') return '<div class="eto-item"><label class="eto-check"><input type="checkbox"'+(to[key]?' checked':'')+' onchange="editStateTO.units['+idx+'].to[\''+key+'\']=this.checked"> '+esc(item.label)+'</label></div>';
+  if(item.t==='phase'){
+    var arr = to[key]||['','',''];
+    return '<div class="eto-item"><div class="eto-lbl">'+esc(item.label)+(item.unit?', '+item.unit:'')+'</div><div class="eto-phase">'+
+      [0,1,2].map(function(p){ return '<label>L'+(p+1)+'<input type="number" step="any" value="'+esc(arr[p]||'')+'" oninput="editStateTO.units['+idx+'].to[\''+key+'\']['+p+']=this.value"></label>'; }).join('')+'</div></div>';
+  }
+  if(item.t==='cells') return etoCellsHtml(idx, key, item.label);
+  return '';
+}
+function etoCellsHtml(idx, key, label){
+  var arr = editStateTO.units[idx].to[key] || [];
+  var rows = arr.map(function(c,i){
+    return '<div class="eto-cell-row"><span>#'+(i+1)+'</span>'+
+      '<input type="number" step="any" placeholder="U,В" value="'+esc(c.u||'')+'" oninput="editStateTO.units['+idx+'].to[\''+key+'\']['+i+'].u=this.value">'+
+      '<input type="number" step="any" placeholder="R,мОм" value="'+esc(c.r||'')+'" oninput="editStateTO.units['+idx+'].to[\''+key+'\']['+i+'].r=this.value">'+
+      '<button type="button" class="eto-x" onclick="editStateTO.units['+idx+'].to[\''+key+'\'].splice('+i+',1);renderEditModeTO()">✕</button></div>';
+  }).join('');
+  return '<div class="eto-item"><div class="eto-lbl">'+esc(label)+'</div>'+rows+
+    '<button type="button" class="eto-add" onclick="etoAddCell('+idx+',\''+key+'\')">+ элемент АКБ</button></div>';
+}
+function etoAddCell(idx, key){
+  if(!Array.isArray(editStateTO.units[idx].to[key])) editStateTO.units[idx].to[key] = [];
+  editStateTO.units[idx].to[key].push({u:'',r:''});
+  renderEditModeTO();
+}
+function etoUnitIdent(u, idx){
+  return '<div class="edit-field"><label>Модель ИБП</label><input type="text" value="'+esc(u.model)+'" oninput="editStateTO.units['+idx+'].model=this.value"></div>'+
+    '<div class="edit-field"><label>Серийный №</label><input type="text" value="'+esc(u.serial)+'" oninput="editStateTO.units['+idx+'].serial=this.value"></div>'+
+    '<div class="edit-field"><label>Мощность</label><input type="text" inputmode="decimal" value="'+esc(u.power)+'" oninput="editStateTO.units['+idx+'].power=this.value"></div>'+
+    '<div class="edit-field"><label>Кол-во АКБ</label><input type="text" value="'+esc(u.batteryCount)+'" oninput="editStateTO.units['+idx+'].batteryCount=this.value"></div>'+
+    '<div class="edit-field"><label>Модель АКБ</label><input type="text" value="'+esc(u.batteryModel)+'" oninput="editStateTO.units['+idx+'].batteryModel=this.value"></div>'+
+    '<div class="edit-field"><label>Год АКБ</label><input type="text" value="'+esc(u.batteryYear)+'" oninput="editStateTO.units['+idx+'].batteryYear=this.value"></div>';
+}
+function renderEditModeTO(){
+  var reqs = etoField('Заказчик','client',editStateTO.client)+etoField('Контактное лицо','contact',editStateTO.contact)+
+    etoField('Адрес объекта','address',editStateTO.address)+etoField('Основание (договор)','basis',editStateTO.basis)+
+    etoField('Инженер','engineer',editStateTO.engineer);
+  var unitsHtml = editStateTO.units.map(function(u, idx){
+    var checklist = TO_SECTIONS.map(function(sec){
+      return '<div class="eto-sec">'+sec.n+'. '+esc(sec.title)+'</div>'+ sec.items.map(function(it){ return etoItemHtml(idx, it); }).join('');
+    }).join('');
+    var defect = etoSlotHtml(idx, 'defect', 'Выявленные неисправности (требуется замена/ремонт)');
+    return '<div class="edit-unit"><div class="eu-title">ИБП #'+(idx+1)+(u.serial?' ('+esc(u.serial)+')':'')+'</div>'+
+      etoUnitIdent(u, idx)+'<div class="eto-hint">Пост-ТО доработки: меняйте «ПОСЛЕ» и «Работа» там, где после оплаты устранили замечание. Снимок «после ТО» останется прежним.</div>'+
+      checklist+defect+'</div>';
+  }).join('');
+  document.getElementById('detailContent').innerHTML =
+    '<div class="detail-card">'+
+      '<div class="detail-header-row"><h2>✏️ Правка ТО '+esc(currentAct.actNumber)+'</h2></div>'+
+      reqs+
+      '<div class="section-title">ИБП — чек-лист (до → работа → после)</div>'+unitsHtml+
+      '<div class="edit-field"><label>Заключение и рекомендации</label><textarea id="eto_concl" oninput="editStateTO.conclusion=this.value">'+esc(editStateTO.conclusion)+'</textarea></div>'+
+      '<div class="edit-actions"><button class="save-btn" onclick="saveEditTO()">💾 Сохранить</button><button class="cancel-btn" onclick="renderViewModeTO()">Отмена</button></div>'+
+    '</div>';
+}
+function saveEditTO(){
+  var payload = {
+    client: editStateTO.client, contact: editStateTO.contact, address: editStateTO.address,
+    basis: editStateTO.basis, engineer: editStateTO.engineer, conclusion: editStateTO.conclusion,
+    units: editStateTO.units
+  };
+  callPost('updateMaintenance', { actNumber: currentAct.actNumber, payload: payload })
+    .then(function(){
+      Object.assign(currentAct, {
+        client: payload.client, contact: payload.contact, address: payload.address,
+        basis: payload.basis, engineer: payload.engineer, conclusion: payload.conclusion,
+        unitsJson: JSON.stringify(payload.units)
+      });
+      renderViewModeTO();
+    })
+    .catch(function(err){ alert('Не удалось сохранить: ' + err.message); });
 }
 
 /* ---- Печать ТО (чистый A4) ---- */
@@ -1747,7 +1952,18 @@ function makeLabelInner(unitIdx){
       '<div class="lc-qr"><img src="'+img+'"></div>'+
       '<div class="lc-cap">Сканируйте — история обслуживания ИБП</div>'+
     '</div>';
+  document.getElementById('labelLink').value = _labelCtx.url;
   document.getElementById('labelOverlay').classList.add('show');
+}
+
+function copyLabelLink(){
+  var inp = document.getElementById('labelLink');
+  inp.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch(e){}
+  if(navigator.clipboard && _labelCtx){ navigator.clipboard.writeText(_labelCtx.url).then(function(){}, function(){}); ok = true; }
+  var btn = document.querySelector('.lp-copy');
+  if(btn){ var t = btn.textContent; btn.textContent = ok ? '✓ Скопировано' : 'Выделено — Ctrl+C'; setTimeout(function(){ btn.textContent = t; }, 1500); }
 }
 
 function closeLabel(){ document.getElementById('labelOverlay').classList.remove('show'); }
