@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERNES — Акт экспресс-диагностики</title>
+<meta name="theme-color" content="#1F4E79">
+<style>
+  :root{ --navy:#1F4E79; --amber:#F2B705; --cream:#FFF4D6; --gray-bg:#F2F2F2; --green:#2E9E4C; --yellow:#E0A800; --red:#D9362B; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--gray-bg); color:#222;}
+  header{background:var(--navy); color:#fff; padding:18px 20px;}
+  header .brand{font-size:20px; font-weight:900;}
+  header .brand .co{display:block; font-size:11px; font-weight:600; opacity:.8; letter-spacing:.05em;}
+  .wrap{max-width:760px; margin:0 auto; padding:16px;}
+  .id-card{background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,.08); margin-bottom:16px; border-top:4px solid var(--amber);}
+  .id-card .lbl{font-size:12px; color:#888; text-transform:uppercase; letter-spacing:.05em;}
+  .id-card .title{font-size:22px; font-weight:800; color:var(--navy); margin:2px 0 8px;}
+  .id-card .meta{font-size:13px; color:#555; margin-top:4px;}
+  .id-card .num{font-family:monospace; font-weight:700; background:var(--cream); display:inline-block; padding:3px 10px; border-radius:8px;}
+  .section-title{color:var(--navy); font-size:15px; font-weight:800; margin:20px 0 10px;}
+  .unit{background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:12px; overflow:hidden;}
+  .unit-head{padding:14px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .unit-head .arrow{width:12px;color:var(--navy);}
+  .unit-head .um{font-weight:800; color:var(--navy);}
+  .unit-head .verdict{margin-left:auto; font-size:12px; font-weight:700;}
+  .unit-body{padding:0 16px 14px; display:none;}
+  .unit-body.open{display:block;}
+  .kv{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px;}
+  .kv td{padding:5px 4px; border-bottom:1px solid #f0f0f0; vertical-align:top;}
+  .kv td.k{color:#666; width:44%; font-weight:600;}
+  .mstatus{display:flex; gap:8px; align-items:baseline; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px; flex-wrap:wrap;}
+  .mstatus .nm{font-weight:600; flex:1;} .mstatus .wd{min-width:110px; text-align:right;}
+  .mstatus .cm{flex-basis:100%; color:#666; font-size:12px; padding-left:20px;}
+  .dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.1);flex-shrink:0;display:inline-block;}
+  .dot.green{background:var(--green);} .dot.yellow{background:var(--yellow);} .dot.red{background:var(--red);} .dot.gray{background:#ddd;}
+  .conclusion-box{background:var(--cream); border-radius:8px; padding:12px; font-size:13px; white-space:pre-wrap; line-height:1.5; margin-top:10px;}
+  .msg{background:#fff; border-radius:12px; padding:30px 20px; text-align:center; color:#777; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  footer{text-align:center; font-size:12px; color:#999; padding:20px;}
+  footer a{color:var(--navy);}
+</style>
+</head>
+<body>
+<header><div class="brand">ERNES <span class="co">INDUSTRIAL POWER SYSTEMS</span></div></header>
+<div class="wrap"><div id="content"><div class="msg">Загрузка акта...</div></div></div>
+<footer>Акт экспресс-диагностики · ТОО «ERNES INDUSTRIAL POWER SYSTEMS»<br><a href="https://ernes.kz" target="_blank">ernes.kz</a> · +7 (727) 380-25-44</footer>
+
+<script>
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
+
+function esc(s){ if(s===undefined||s===null) return ''; return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function getParam(n){ var m=new RegExp('[?&]'+n+'=([^&]*)').exec(location.search); return m?decodeURIComponent(m[1].replace(/\+/g,' ')):''; }
+
+// В диагностике статусы хранятся строкой вида "Норма — коммент"
+function statusCls(t){ t=String(t||''); return t.indexOf('Норма')===0?'green':t.indexOf('Замечание')===0?'yellow':t.indexOf('Неисправность')===0?'red':'gray'; }
+function statusComment(t){ t=String(t||''); var i=t.indexOf('—'); return i!==-1?t.slice(i+1).trim():''; }
+function statusWord(t){ var c=statusCls(t); return c==='green'?'Норма':c==='yellow'?'Замечание':c==='red'?'Неисправность':'не отмечено'; }
+
+var STATUS_ITEMS=[
+  {key:'statusBattery',title:'АКБ'},
+  {key:'statusDisplay',title:'Индикация ИБП'},
+  {key:'statusFans',title:'Вентиляторы'},
+  {key:'statusDust',title:'Запылённость помещения'}
+];
+
+function unitVerdict(u){
+  var reds=0,yellows=0;
+  STATUS_ITEMS.forEach(function(it){ var c=statusCls((u.statuses||{})[it.key]); if(c==='red')reds++; else if(c==='yellow')yellows++; });
+  if(reds) return {cls:'bad',text:'🔴 Есть неисправности',col:'#D9362B'};
+  if(yellows) return {cls:'warn',text:'🟡 Есть замечания',col:'#9a7400'};
+  return {cls:'ok',text:'🟢 Норма',col:'#2E9E4C'};
+}
+
+function statusRow(label, raw){
+  var c=statusCls(raw), cm=statusComment(raw);
+  return '<div class="mstatus"><span class="dot '+c+'"></span><span class="nm">'+esc(label)+'</span>'+
+    '<span class="wd">'+statusWord(raw)+'</span>'+(cm?'<span class="cm">'+esc(cm)+'</span>':'')+'</div>';
+}
+
+function toggle(id){ var b=document.getElementById(id); var a=document.getElementById(id+'_a'); var o=b.classList.toggle('open'); if(a)a.textContent=o?'▾':'▸'; }
+
+function render(d){
+  var c=document.getElementById('content');
+  var idCard='<div class="id-card">'+
+    '<div class="lbl">Акт экспресс-диагностики ИБП</div>'+
+    '<div class="title">'+esc(d.client||'Заказчик')+'</div>'+
+    '<div class="meta"><span class="num">'+esc(d.actNumber)+'</span> · '+esc(d.date)+'</div>'+
+    (d.address?'<div class="meta">📍 '+esc(d.address)+'</div>':'')+
+    (d.engineer?'<div class="meta">Инженер: '+esc(d.engineer)+'</div>':'')+
+  '</div>';
+
+  var units=(d.units||[]).map(function(u,i){
+    var vd=unitVerdict(u); var id='u'+i;
+    var rows=STATUS_ITEMS.map(function(it){ return statusRow(it.title,(u.statuses||{})[it.key]); }).join('');
+    var idTable='<table class="kv">'+
+      (u.model?'<tr><td class="k">Модель</td><td>'+esc(u.model)+'</td></tr>':'')+
+      (u.serial?'<tr><td class="k">Серийный №</td><td>'+esc(u.serial)+'</td></tr>':'')+
+      (u.power?'<tr><td class="k">Мощность</td><td>'+esc(u.power)+' '+esc(u.powerUnit||'кВА')+'</td></tr>':'')+
+      (u.batteryCount?'<tr><td class="k">Кол-во АКБ</td><td>'+esc(u.batteryCount)+'</td></tr>':'')+
+      (u.roomTemp?'<tr><td class="k">Температура</td><td>'+esc(u.roomTemp)+' °C</td></tr>':'')+
+    '</table>';
+    return '<div class="unit"><div class="unit-head" onclick="toggle(\''+id+'\')">'+
+      '<span class="arrow" id="'+id+'_a">▸</span><span class="um">ИБП #'+(i+1)+(u.serial?' ('+esc(u.serial)+')':'')+'</span>'+
+      '<span class="verdict" style="color:'+vd.col+'">'+vd.text+'</span></div>'+
+      '<div class="unit-body" id="'+id+'">'+idTable+rows+'</div></div>';
+  }).join('');
+
+  c.innerHTML=idCard+'<div class="section-title">Оборудование и состояние</div>'+units+
+    (d.conclusion?'<div class="section-title">Заключение и рекомендации</div><div class="conclusion-box">'+esc(d.conclusion)+'</div>':'');
+  if((d.units||[]).length) toggle('u0');
+}
+
+function fetchJson(url, attempt){
+  attempt=attempt||0; var MAX=3;
+  return fetch(url).then(function(r){ return r.text(); }).then(function(t){
+    t=(t||'').trim();
+    try{ return JSON.parse(t); }catch(e){
+      if((t.charAt(0)==='<') && attempt<MAX){ return new Promise(function(res){ setTimeout(res,600*(attempt+1)); }).then(function(){ return fetchJson(url,attempt+1); }); }
+      throw new Error('сервер вернул не JSON');
+    }
+  });
+}
+function load(){
+  var act=getParam('act'); var c=document.getElementById('content');
+  if(!act){ c.innerHTML='<div class="msg">Не указан № акта в ссылке.</div>'; return; }
+  fetchJson(APPS_SCRIPT_URL+'?action=getDiagAct&act='+encodeURIComponent(act)).then(function(res){
+    if(!res.ok) throw new Error(res.error||'Ошибка сервера');
+    if(!res.data){ c.innerHTML='<div class="msg">Акт не найден.</div>'; return; }
+    render(res.data);
+  }).catch(function(err){ c.innerHTML='<div class="msg">Не удалось загрузить: '+esc(err.message)+'<br><br>Обновите страницу.</div>'; });
+}
+load();
+</script>
+</body>
+</html>
