@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERNES — Отчёт по парку ИБП</title>
+<meta name="theme-color" content="#1F4E79">
+<style>
+  :root{ --navy:#1F4E79; --amber:#F2B705; --cream:#FFF4D6; --gray-bg:#F2F2F2; --green:#2E9E4C; --yellow:#E0A800; --red:#D9362B; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--gray-bg); color:#222;}
+  header{background:var(--navy); color:#fff; padding:18px 20px;}
+  header .brand{font-size:20px; font-weight:900;}
+  header .brand .co{display:block; font-size:11px; font-weight:600; opacity:.8; letter-spacing:.05em;}
+  .wrap{max-width:820px; margin:0 auto; padding:16px;}
+  .company{background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,.08); margin-bottom:16px; border-top:4px solid var(--amber);}
+  .company .lbl{font-size:12px; color:#888; text-transform:uppercase; letter-spacing:.05em;}
+  .company .name{font-size:22px; font-weight:800; color:var(--navy); margin:2px 0 6px;}
+  .company .bin{font-family:monospace; font-size:14px; background:var(--cream); display:inline-block; padding:3px 10px; border-radius:8px; font-weight:700;}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px;}
+  .stat{text-align:center; background:#f7f9fb; border-radius:10px; padding:12px 6px;}
+  .stat .v{font-size:22px; font-weight:800; color:var(--navy);}
+  .stat .l{font-size:11px; color:#777; margin-top:2px;}
+  .site{background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:14px; overflow:hidden;}
+  .site-head{background:#eef2f7; padding:12px 16px; font-weight:800; color:var(--navy); font-size:15px;}
+  .unit{display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f0f0f0; text-decoration:none; color:inherit;}
+  .unit:hover{background:#fafcff;}
+  .unit .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,.1);}
+  .dot.green{background:var(--green);} .dot.yellow{background:var(--yellow);} .dot.red{background:var(--red);} .dot.gray{background:#ccc;}
+  .unit .u-main{flex:1;}
+  .unit .u-model{font-weight:700;}
+  .unit .u-meta{font-size:12px; color:#777; margin-top:2px;}
+  .unit .u-pct{font-weight:800; font-size:16px;}
+  .unit .u-arrow{color:#bbb; font-size:20px;}
+  .msg{background:#fff; border-radius:12px; padding:30px 20px; text-align:center; color:#777; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  footer{text-align:center; font-size:12px; color:#999; padding:20px;}
+  footer a{color:var(--navy);}
+</style>
+</head>
+<body>
+<header><div class="brand">ERNES <span class="co">INDUSTRIAL POWER SYSTEMS</span></div></header>
+<div class="wrap"><div id="content"><div class="msg">Загрузка отчёта по парку...</div></div></div>
+<footer>Сводный отчёт по парку ИБП · ТОО «ERNES INDUSTRIAL POWER SYSTEMS»<br><a href="https://ernes.kz" target="_blank">ernes.kz</a> · +7 (727) 380-25-44</footer>
+
+<script>
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
+
+function esc(s){ if(s===undefined||s===null) return ''; return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function getParam(n){ var m=new RegExp('[?&]'+n+'=([^&]*)').exec(location.search); return m?decodeURIComponent(m[1].replace(/\+/g,' ')):''; }
+
+function scoreOf(v){ return v==='green'?1:v==='yellow'?0.5:v==='red'?0:null; }
+// % и вердикт по «after» — перебираем все статусные слоты внутри u.to.
+function unitPct(u){
+  var to=(u&&u.to)||{}, total=0, sum=0, reds=0, yellows=0;
+  Object.keys(to).forEach(function(k){
+    var s=to[k];
+    if(s && typeof s==='object' && ('after' in s || 'before' in s || 'value' in s)){
+      var v=('after' in s)?s.after:('value' in s?s.value:'');
+      var sc=scoreOf(v);
+      if(sc!==null){ total++; sum+=sc; if(v==='red')reds++; else if(v==='yellow')yellows++; }
+    }
+  });
+  return { pct: total?Math.round(sum/total*100):null, reds:reds, yellows:yellows };
+}
+function cardUrl(serial){ return new URL('card.html', location.href).href + '?sn=' + encodeURIComponent(String(serial||'').trim().toUpperCase().replace(/\s+/g,'')); }
+
+function render(data){
+  var c=document.getElementById('content');
+  if(!data.sites || !data.sites.length){
+    c.innerHTML='<div class="msg">По этому БИН пока нет актов ТО.<br><br>Возможно, БИН ещё не заполнен в актах — его можно внести в журнале через «Редактировать».</div>';
+    return;
+  }
+  var head='<div class="company">'+
+    '<div class="lbl">Отчёт по парку ИБП</div>'+
+    '<div class="name">'+(esc(data.company)||'Компания')+'</div>'+
+    '<div class="bin">БИН '+esc(data.bin)+'</div>'+
+    '<div class="stats">'+
+      '<div class="stat"><div class="v">'+data.totalUnits+'</div><div class="l">ИБП в парке</div></div>'+
+      '<div class="stat"><div class="v">'+data.sites.length+'</div><div class="l">объектов</div></div>'+
+      '<div class="stat"><div class="v">'+data.totalActs+'</div><div class="l">актов ТО</div></div>'+
+    '</div>'+
+  '</div>';
+
+  var sites=data.sites.map(function(site){
+    var units=site.units.map(function(un){
+      var r=unitPct(un.unit);
+      var cls=r.reds?'red':r.yellows?'yellow':(r.pct!==null?'green':'gray');
+      var pct=r.pct!==null?(r.pct+'%'):'—';
+      var meta=[un.model, un.power?(un.power+' '+(un.powerUnit||'кВА')):'', un.serial?('S/N '+un.serial):'', 'ТО '+esc(un.lastDate)].filter(Boolean).join(' · ');
+      var href = un.serial ? cardUrl(un.serial) : '#';
+      return '<a class="unit" href="'+href+'"'+(un.serial?' target="_blank"':'')+'>'+
+        '<span class="dot '+cls+'"></span>'+
+        '<span class="u-main"><span class="u-model">'+(esc(un.model)||'ИБП')+'</span><span class="u-meta">'+esc(meta)+'</span></span>'+
+        '<span class="u-pct" style="color:'+(cls==='red'?'#D9362B':cls==='yellow'?'#9a7400':'#2E9E4C')+'">'+pct+'</span>'+
+        '<span class="u-arrow">›</span>'+
+      '</a>';
+    }).join('');
+    return '<div class="site"><div class="site-head">📍 '+esc(site.address)+' · ИБП: '+site.units.length+'</div>'+units+'</div>';
+  }).join('');
+
+  c.innerHTML=head+'<div style="font-weight:800;color:var(--navy);margin:6px 4px 10px;">Объекты и оборудование</div>'+sites;
+}
+
+function fetchJson(url, attempt){
+  attempt=attempt||0; var MAX=3;
+  return fetch(url).then(function(r){ return r.text(); }).then(function(t){
+    t=(t||'').trim();
+    try{ return JSON.parse(t); }catch(e){
+      if((t.charAt(0)==='<') && attempt<MAX){ return new Promise(function(res){ setTimeout(res,600*(attempt+1)); }).then(function(){ return fetchJson(url,attempt+1); }); }
+      throw new Error('сервер вернул не JSON');
+    }
+  });
+}
+function load(){
+  var bin=getParam('bin'); var c=document.getElementById('content');
+  if(!bin){ c.innerHTML='<div class="msg">Не указан БИН в ссылке.</div>'; return; }
+  fetchJson(APPS_SCRIPT_URL+'?action=getCompanyReport&bin='+encodeURIComponent(bin)).then(function(res){
+    if(!res.ok) throw new Error(res.error||'Ошибка сервера');
+    render(res.data);
+  }).catch(function(err){ c.innerHTML='<div class="msg">Не удалось загрузить: '+esc(err.message)+'<br><br>Обновите страницу.</div>'; });
+}
+load();
+</script>
+</body>
+</html>
