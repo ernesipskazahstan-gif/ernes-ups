@@ -10,7 +10,7 @@
  *  - миниатюры Drive — runtime cache (появляются офлайн, если раньше открывались).
  * Запросы к Apps Script (данные) НИКОГДА не кэшируются — только сеть.
  */
-var CACHE = 'ernes-field-v10';
+var CACHE = 'ernes-field-v11';
 
 var SHELL = [
   './audit-github.html',
