@@ -259,6 +259,8 @@
       <h3>Объект и заказчик</h3>
       <label>Заказчик *</label>
       <input type="text" id="f_client" placeholder="ТОО / компания">
+      <label>БИН компании <span style="font-weight:400;color:#999;">(можно заполнить позже в офисе)</span></label>
+      <input type="text" id="f_bin" inputmode="numeric" placeholder="12 цифр — для отчёта по всему парку">
       <label>Контактное лицо (ФИО + телефон)</label>
       <input type="text" id="f_contact" placeholder="Бакыт, +7...">
       <label>Адрес объекта</label>
@@ -383,7 +385,7 @@
 // ВСТАВЬ СЮДА ту же ссылку .../exec из Apps Script
 // Номер версии приложения. Меняется при каждом релизе — виден в шапке,
 // чтобы сразу понимать, обновилось ли приложение (не висит ли старый кэш).
-var APP_VERSION = 'v10 · 06.08.2026';
+var APP_VERSION = 'v11 · 06.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
 
 function callBackend(action, data){
@@ -1560,6 +1562,7 @@ function buildDiagPayload(){
   return {
     engineer: document.getElementById('f_engineer').value,
     client: document.getElementById('f_client').value,
+    bin: document.getElementById('f_bin').value,
     contact: document.getElementById('f_contact').value,
     address: document.getElementById('f_address').value,
     basis: document.getElementById('f_basis').value,
@@ -1582,6 +1585,7 @@ function buildToPayload(){
     mode: 'to',
     engineer: document.getElementById('f_engineer').value,
     client: document.getElementById('f_client').value,
+    bin: document.getElementById('f_bin').value,
     contact: document.getElementById('f_contact').value,
     address: document.getElementById('f_address').value,
     basis: document.getElementById('f_basis').value,
@@ -1697,6 +1701,7 @@ function collectSnapshot(){
   return {
     form: {
       client:   document.getElementById('f_client').value,
+      bin:      document.getElementById('f_bin').value,
       contact:  document.getElementById('f_contact').value,
       address:  document.getElementById('f_address').value,
       basis:    document.getElementById('f_basis').value,
@@ -1849,6 +1854,7 @@ function continueDraft(localId){
     state.genset = s.genset || [];
     var f = s.form || {};
     document.getElementById('f_client').value = f.client || '';
+    document.getElementById('f_bin').value = f.bin || '';
     document.getElementById('f_contact').value = f.contact || '';
     document.getElementById('f_address').value = f.address || '';
     document.getElementById('f_basis').value = f.basis || '';
