@@ -106,6 +106,8 @@
   .status-item{border:1px solid #e3e3e3; border-radius:10px; padding:12px; margin-bottom:10px;}
   .status-item .item-title{font-weight:600; font-size:14px; margin-bottom:8px;}
   .status-pick{display:flex; gap:8px; margin-bottom:8px;}
+  .ba-label{font-size:12px; font-weight:700; color:var(--navy); margin:6px 0 4px;}
+  .ba-work{background:#fbfaf5; border:1px solid #f0e6c8; border-radius:8px; padding:8px 10px; margin:4px 0 8px;}
   .status-pick button{
     flex:1; padding:9px 4px; border-radius:8px; border:2px solid #ddd; background:#fff;
     font-size:13px; cursor:pointer;
@@ -381,7 +383,7 @@
 // ВСТАВЬ СЮДА ту же ссылку .../exec из Apps Script
 // Номер версии приложения. Меняется при каждом релизе — виден в шапке,
 // чтобы сразу понимать, обновилось ли приложение (не висит ли старый кэш).
-var APP_VERSION = 'v7 · 05.08.2026';
+var APP_VERSION = 'v10 · 06.08.2026';
 var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx3XAT9CQAO2DJc0iBl1zWHuIAqnOCsT1qv2knZsaty4CHS_3AOejBd_G1jTH4WRiqDDQ/exec';
 
 function callBackend(action, data){
@@ -400,8 +402,6 @@ function callBackend(action, data){
 
 /* ===================== РЕЖИМ ДИАГНОСТИКИ (без изменений) ===================== */
 var STATUS_ITEMS = [
-  {key:'statusInverter',  title:'Инверторный блок'},
-  {key:'statusRectifier', title:'Выпрямительный блок'},
   {key:'statusBattery',   title:'АКБ'},
   {key:'statusDisplay',   title:'Индикация ИБП'},
   {key:'statusFans',      title:'Вентиляторы'},
@@ -496,20 +496,20 @@ function forEachToItem(cb){
 function emptyToData(){
   var o = {};
   forEachToItem(function(it){
-    if(it.t === 'status') o[it.key] = { value:'', comment:'' };
+    if(it.t === 'status') o[it.key] = { before:'', work:'', after:'' };
     else if(it.t === 'check') o[it.key] = false;
     else if(it.t === 'phase') o[it.key] = ['','',''];
     else if(it.t === 'cells') o[it.key] = [];
     else o[it.key] = ''; // num, text
   });
-  o.defect = { value:'', comment:'' }; // выявленные неисправности → замена/ремонт
+  o.defect = { before:'', work:'', after:'' }; // выявленные неисправности → замена/ремонт
   return o;
 }
 
 /* ===================== Общая модель ===================== */
 function emptyUnit(){
   return {
-    model:'',serial:'',cabinetType:'Внутренний',cabinetCount:'',batteryCount:'',batteryCapacity:'',batteryModel:'',batteryYear:'',roomTemp:'',
+    model:'',serial:'',power:'',powerUnit:'кВА',phases:'1',cabinetType:'Внутренний',cabinetCount:'',batteryCount:'',batteryCapacity:'',batteryModel:'',batteryYear:'',roomTemp:'',
     statuses: emptyUnitStatuses(),
     to: emptyToData(),
     collapsed: true
@@ -617,6 +617,23 @@ function unitIdFieldsHtml(u, idx){
       '<div><input type="text" id="serial_'+idx+'" value="'+esc(u.serial)+'" oninput="state.units['+idx+'].serial=this.value; syncUnitHeader('+idx+')"></div>'+
       '<button type="button" class="scan-btn" id="scanBtn_'+idx+'" onclick="triggerScan('+idx+')">📷 Скан</button>'+
       '<input type="file" accept="image/*" capture="environment" id="scanFile_'+idx+'" style="display:none" onchange="scanSerial('+idx+',event)">'+
+    '</div>'+
+    '<div class="row2">'+
+      '<div><label>Мощность ИБП</label>'+
+        '<div class="inline-row">'+
+          '<div><input type="number" step="any" value="'+esc(u.power)+'" oninput="state.units['+idx+'].power=this.value" placeholder="напр. 10"></div>'+
+          '<select onchange="state.units['+idx+'].powerUnit=this.value" style="flex:0 0 90px;">'+
+            '<option'+(u.powerUnit==='кВА'?' selected':'')+'>кВА</option>'+
+            '<option'+(u.powerUnit==='кВт'?' selected':'')+'>кВт</option>'+
+          '</select>'+
+        '</div>'+
+      '</div>'+
+      '<div><label>Кол-во фаз</label>'+
+        '<select onchange="state.units['+idx+'].phases=this.value">'+
+          '<option value="1"'+(String(u.phases)==='1'?' selected':'')+'>1-фазный</option>'+
+          '<option value="3"'+(String(u.phases)==='3'?' selected':'')+'>3-фазный</option>'+
+        '</select>'+
+      '</div>'+
     '</div>'+
     '<div class="row2">'+
       '<div><label>Тип аккум. шкафа</label>'+
@@ -752,33 +769,72 @@ function wrapToItem(idx, item, innerHtml){
   return '<div class="to-item-wrap">'+innerHtml+toItemPhotoHtml(idx, item)+'</div>';
 }
 
+function toStatusBtnsHtml(idx, key, stage, current){
+  var fn = (stage === 'B') ? 'setToBefore' : 'setToAfter';
+  return ['green','yellow','red'].map(function(c){
+    var label = c==='green'?'🟢 Норма':c==='yellow'?'🟡 Замечание':'🔴 Неисправность';
+    var sel = (current === c) ? (' class="sel-'+c+'"') : '';
+    return '<button type="button" id="tobtn'+stage+'_'+idx+'_'+key+'_'+c+'"'+sel+' onclick="'+fn+'('+idx+',\''+key+'\',\''+c+'\')">'+label+'</button>';
+  }).join('');
+}
+
 function toStatusHtml(idx, item){
-  var s = state.units[idx].to[item.key];
-  var photoBtn = '<label class="photo-btn">📷 Фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/'+item.label+'\')"></label><div class="thumbs" id="tothumbs_'+idx+'_'+item.key+'"></div>';
+  var s = state.units[idx].to[item.key] || { before:'', work:'', after:'' };
+  var key = item.key;
+  var showWork = (s.before === 'yellow' || s.before === 'red');
+  var photoBtn = '<label class="photo-btn">📷 Фото<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhoto(event,\'ИБП #'+(idx+1)+'/'+item.label+'\')"></label><div class="thumbs" id="tothumbs_'+idx+'_'+key+'"></div>';
   return ''+
   '<div class="status-item">'+
     '<div class="item-title">'+item.label+'</div>'+
-    '<div class="status-pick">'+
-      '<button type="button" id="tobtn_'+idx+'_'+item.key+'_green" onclick="setToStatus('+idx+',\''+item.key+'\',\'green\')">🟢 Норма</button>'+
-      '<button type="button" id="tobtn_'+idx+'_'+item.key+'_yellow" onclick="setToStatus('+idx+',\''+item.key+'\',\'yellow\')">🟡 Замечание</button>'+
-      '<button type="button" id="tobtn_'+idx+'_'+item.key+'_red" onclick="setToStatus('+idx+',\''+item.key+'\',\'red\')">🔴 Неисправность</button>'+
-    '</div>'+
-    '<div class="mic-row">'+
-      '<textarea placeholder="Комментарий (необязательно)" id="tocomment_'+idx+'_'+item.key+'" oninput="state.units['+idx+'].to[\''+item.key+'\'].comment=this.value">'+esc(s.comment)+'</textarea>'+
-      '<button type="button" class="mic-btn" onclick="toggleMic(this, \'tocomment_'+idx+'_'+item.key+'\')">🎤</button>'+
+    '<div class="ba-label">Состояние ДО обслуживания:</div>'+
+    '<div class="status-pick">'+ toStatusBtnsHtml(idx, key, 'B', s.before) +'</div>'+
+    '<div class="ba-work" id="towork_'+idx+'_'+key+'" style="display:'+(showWork?'block':'none')+';">'+
+      '<div class="ba-label">Что сделал (выполненные работы):</div>'+
+      '<div class="mic-row">'+
+        '<textarea placeholder="напр. заменил вентилятор / очистил / протянул" id="towork_ta_'+idx+'_'+key+'" oninput="state.units['+idx+'].to[\''+key+'\'].work=this.value">'+esc(s.work)+'</textarea>'+
+        '<button type="button" class="mic-btn" onclick="toggleMic(this, \'towork_ta_'+idx+'_'+key+'\')">🎤</button>'+
+      '</div>'+
+      '<div class="ba-label">Состояние ПОСЛЕ работ:</div>'+
+      '<div class="status-pick">'+ toStatusBtnsHtml(idx, key, 'A', s.after) +'</div>'+
     '</div>'+
     photoBtn+
   '</div>';
 }
 
-function setToStatus(idx, key, val){
-  state.units[idx].to[key].value = val;
+function setToBefore(idx, key, val){
+  var slot = state.units[idx].to[key];
+  slot.before = val;
   ['green','yellow','red'].forEach(function(c){
-    var el = document.getElementById('tobtn_'+idx+'_'+key+'_'+c);
+    var el = document.getElementById('tobtnB_'+idx+'_'+key+'_'+c);
     if(el) el.classList.remove('sel-'+c);
   });
-  var target = document.getElementById('tobtn_'+idx+'_'+key+'_'+val);
-  if(target) target.classList.add('sel-'+val);
+  var t = document.getElementById('tobtnB_'+idx+'_'+key+'_'+val);
+  if(t) t.classList.add('sel-'+val);
+
+  var work = document.getElementById('towork_'+idx+'_'+key);
+  if(val === 'green'){
+    // Норма — работ не требуется, «после» = норма автоматически
+    slot.after = 'green';
+    if(work) work.style.display = 'none';
+  } else {
+    // Замечание/неисправность — раскрываем работы и просим отметить «после»
+    slot.after = '';
+    ['green','yellow','red'].forEach(function(c){
+      var el = document.getElementById('tobtnA_'+idx+'_'+key+'_'+c);
+      if(el) el.classList.remove('sel-'+c);
+    });
+    if(work) work.style.display = 'block';
+  }
+}
+
+function setToAfter(idx, key, val){
+  state.units[idx].to[key].after = val;
+  ['green','yellow','red'].forEach(function(c){
+    var el = document.getElementById('tobtnA_'+idx+'_'+key+'_'+c);
+    if(el) el.classList.remove('sel-'+c);
+  });
+  var t = document.getElementById('tobtnA_'+idx+'_'+key+'_'+val);
+  if(t) t.classList.add('sel-'+val);
 }
 
 /* ---- Сетка элементов АКБ (U + внутр. сопротивление, автоподсветка слабых) ---- */
@@ -1185,8 +1241,15 @@ function compressImage(file, maxDim, quality){
   });
 }
 
+var _recentPhotoSigs = {};
 function storePhotoLocal(file, group, thumbsEl){
   ensureDraftId();
+  // Защита от двойного срабатывания события выбора файла (баг Android Chrome —
+  // иногда change приходит дважды и фото крепилось несколько раз).
+  var sig = group + '|' + file.size + '|' + (file.lastModified || 0);
+  var now = Date.now();
+  if(_recentPhotoSigs[sig] && (now - _recentPhotoSigs[sig] < 4000)) return;
+  _recentPhotoSigs[sig] = now;
   compressImage(file, 1600, 0.7).then(function(blob){
     return ErnesOffline.addPhoto(state.localId, group, blob, 'image/jpeg', null)
       .then(function(rec){
@@ -1426,6 +1489,25 @@ function buildSummary(){
   renderSummaryRows(rows);
 }
 
+// Доступ к статусному слоту ТО с поддержкой старого формата {value,comment}.
+function toSlot(u, key){
+  var s = (u.to && u.to[key]) ? u.to[key] : null;
+  if(!s || typeof s !== 'object') return { before:'', work:'', after:'' };
+  if('before' in s || 'after' in s) return { before:s.before||'', work:s.work||'', after:s.after||'' };
+  // старый формат
+  return { before:s.value||'', work:s.comment||'', after:s.value||'' };
+}
+function scoreOfVal(v){ return v==='green'?1:v==='yellow'?0.5:v==='red'?0:null; }
+// Процент состояния по стадии ('before'|'after') для одного или всех ИБП.
+function toPctUnits(units, stage){
+  var total=0, sum=0;
+  units.forEach(function(u){
+    forEachToItem(function(it){ if(it.t==='status'){ var sc=scoreOfVal(toSlot(u,it.key)[stage]); if(sc!==null){ total++; sum+=sc; } } });
+    var d=scoreOfVal(toSlot(u,'defect')[stage]); if(d!==null){ total++; sum+=d; }
+  });
+  return total ? Math.round(sum/total*100) : null;
+}
+
 function buildToSummary(){
   var rows = [
     ['Тип визита', 'Техобслуживание'],
@@ -1434,15 +1516,18 @@ function buildToSummary(){
     ['Основание (договор)', document.getElementById('f_basis').value],
     ['ИБП по ТО', state.units.length + ' шт.']
   ];
+  var pb = toPctUnits(state.units, 'before'), pa = toPctUnits(state.units, 'after');
+  if(pb !== null) rows.push(['Состояние объекта', 'было ' + pb + '% → стало ' + (pa!==null?pa:pb) + '%']);
   state.units.forEach(function(u, idx){
     var reds = 0, yellows = 0;
     forEachToItem(function(it){
       if(it.t === 'status'){
-        var v = u.to[it.key].value;
+        var v = toSlot(u, it.key).before;
         if(v === 'red') reds++; else if(v === 'yellow') yellows++;
       }
     });
-    if(u.to.defect.value === 'red') reds++; else if(u.to.defect.value === 'yellow') yellows++;
+    var dv = toSlot(u, 'defect').before;
+    if(dv === 'red') reds++; else if(dv === 'yellow') yellows++;
     var weak = weakCellNumbers(u.to.s10_cells);
     var label = (reds ? '🔴 '+reds+' ' : '') + (yellows ? '🟡 '+yellows+' ' : '');
     if(!label) label = '🟢 без замечаний';
@@ -1467,7 +1552,7 @@ function buildDiagPayload(){
     var statusesOut = {};
     STATUS_ITEMS.forEach(function(item){ statusesOut[item.key] = labelForUnitStatus(u, item.key); });
     return {
-      model: u.model, serial: u.serial, cabinetType: u.cabinetType, cabinetCount: u.cabinetCount,
+      model: u.model, serial: u.serial, power: u.power, powerUnit: u.powerUnit, phases: u.phases, cabinetType: u.cabinetType, cabinetCount: u.cabinetCount,
       batteryCount: u.batteryCount, batteryCapacity: u.batteryCapacity, batteryModel: u.batteryModel,
       batteryYear: u.batteryYear, roomTemp: u.roomTemp, statuses: statusesOut
     };
@@ -1488,7 +1573,7 @@ function buildDiagPayload(){
 function buildToPayload(){
   var unitsPayload = state.units.map(function(u){
     return {
-      model: u.model, serial: u.serial, cabinetType: u.cabinetType, cabinetCount: u.cabinetCount,
+      model: u.model, serial: u.serial, power: u.power, powerUnit: u.powerUnit, phases: u.phases, cabinetType: u.cabinetType, cabinetCount: u.cabinetCount,
       batteryCount: u.batteryCount, batteryCapacity: u.batteryCapacity, batteryModel: u.batteryModel,
       batteryYear: u.batteryYear, to: u.to
     };
@@ -1566,29 +1651,37 @@ function statusWord(v){
 
 function buildToConclusion(){
   var main = document.getElementById('f_conclusion').value.trim();
-  var defects = [];
+  var fixed = [];    // устранённые/обработанные замечания (до → после)
+  var remain = [];   // оставшиеся замечания / рекомендации (после = не норма)
   state.units.forEach(function(u, idx){
     var tag = 'ИБП #' + (idx+1) + (u.serial ? ' ('+u.serial+')' : '');
     forEachToItem(function(it){
       if(it.t === 'status'){
-        var s = u.to[it.key];
-        if(s.value === 'red' || s.value === 'yellow'){
-          defects.push('• ' + tag + ' — ' + it.label + ': ' + statusWord(s.value) + (s.comment ? ' — ' + s.comment : ''));
+        var s = toSlot(u, it.key);
+        if(s.before === 'red' || s.before === 'yellow'){
+          var line = '• ' + tag + ' — ' + it.label + ': было ' + statusWord(s.before) +
+                     (s.work ? ', выполнено: ' + s.work : '') +
+                     (s.after ? ' → стало ' + statusWord(s.after) : '');
+          if(s.after === 'green') fixed.push(line); else remain.push(line);
         }
       }
     });
     var weak = weakCellNumbers(u.to.s10_cells);
     if(weak.length){
-      defects.push('• ' + tag + ' — слабые элементы АКБ (низкое U / высокое R): №' + weak.join(', №'));
+      remain.push('• ' + tag + ' — слабые элементы АКБ (низкое U / высокое R): №' + weak.join(', №'));
     }
-    var d = u.to.defect;
-    if(d.value === 'red' || d.value === 'yellow'){
-      defects.push('• ' + tag + ' — требуется замена/ремонт: ' + statusWord(d.value) + (d.comment ? ' — ' + d.comment : ''));
+    var d = toSlot(u, 'defect');
+    if(d.before === 'red' || d.before === 'yellow'){
+      var dl = '• ' + tag + ' — требуется замена/ремонт: было ' + statusWord(d.before) +
+               (d.work ? ', выполнено: ' + d.work : '') +
+               (d.after ? ' → стало ' + statusWord(d.after) : '');
+      if(d.after === 'green') fixed.push(dl); else remain.push(dl);
     }
   });
   var parts = [];
   if(main) parts.push(main);
-  if(defects.length) parts.push('Выявленные замечания и рекомендации:\n' + defects.join('\n'));
+  if(fixed.length) parts.push('Устранённые замечания (до → после):\n' + fixed.join('\n'));
+  if(remain.length) parts.push('Требуют внимания / рекомендации:\n' + remain.join('\n'));
   return parts.join('\n\n');
 }
 
